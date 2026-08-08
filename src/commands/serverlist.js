@@ -11,7 +11,7 @@ async function execute(interaction) {
   const guilds = Array.from(interaction.client.guilds.cache.values());
   
   if (guilds.length === 0) {
-    return interaction.editReply('Le bot n\\'est sur aucun serveur (étrange...).');
+    return interaction.editReply("Le bot n'est sur aucun serveur (étrange...).");
   }
 
   const embed = new EmbedBuilder()
