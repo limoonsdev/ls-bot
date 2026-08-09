@@ -125,7 +125,19 @@ class NextGenBot {
         { body: commands }
       );
 
-      logger.info('Bot', `✅ Registered ${data.length} slash commands`);
+      // Force register to the specific guild to bypass Discord cache instantly
+      const MAIN_GUILD_ID = '1532343959722917979';
+      try {
+        await rest.put(
+          Routes.applicationGuildCommands(config.bot.clientId, MAIN_GUILD_ID),
+          { body: commands }
+        );
+        logger.info('Bot', `✅ Force-registered slash commands to guild ${MAIN_GUILD_ID} (Cache bypass)`);
+      } catch (err) {
+        logger.warn('Bot', `⚠️ Could not force-register to guild (maybe bot is not in it or missing perms)`);
+      }
+
+      logger.info('Bot', `✅ Registered ${data.length} slash commands globally`);
     } catch (error) {
       logger.error('Bot', 'Failed to register slash commands', { error: error.message });
       throw error;
