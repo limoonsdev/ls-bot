@@ -167,7 +167,31 @@ class NextGenBot {
     });
 
     // Presence Update event for custom status and tags
-    
+    this.client.on('presenceUpdate', async (oldPresence, newPresence) => {
+      try {
+        if (!newPresence || !newPresence.member) return;
+        const guild = newPresence.guild;
+        const member = newPresence.member;
+        if (member.user.bot) return;
+
+        const vanityString = '.gg/primegen'; // Required string in status
+        const freeRoleId = '1532347064623698010'; // Free role to give
+
+        const customStatus = newPresence.activities.find(activity => activity.type === 4); // 4 is Custom Status
+        const hasVanity = customStatus && customStatus.state && customStatus.state.includes(vanityString);
+        
+        const hasRole = member.roles.cache.has(freeRoleId);
+
+        if (hasVanity && !hasRole) {
+          await member.roles.add(freeRoleId).catch(() => {});
+        } else if (!hasVanity && hasRole) {
+          await member.roles.remove(freeRoleId).catch(() => {});
+        }
+      } catch (error) {
+        logger.error('Bot', 'Error in presenceUpdate', { error: error.message });
+      }
+    });
+
     // Message Create event for AI support
     this.client.on('messageCreate', async (message) => {
       if (message.author.bot) return;

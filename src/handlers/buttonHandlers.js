@@ -96,11 +96,19 @@ async function handleGenButton(interaction) {
     });
   }
 
-  // Check Free role if tier is free
-  if (tier === 'free' && !interaction.member.roles.cache.has('1532347064623698010')) {
-    return interaction.editReply({
-      content: '❌ Tu n\'as pas accès à ce panel ! Vérifie-toi d\'abord pour obtenir le rôle Free.'
-    });
+  // Check Free tier requirements (Status or VIP)
+  if (tier === 'free') {
+    const isVip = interaction.member.roles.cache.has('1532346926425444474');
+    const hasFreeRole = interaction.member.roles.cache.has('1532347064623698010');
+    
+    const customStatus = interaction.member.presence?.activities.find(a => a.type === 4); // 4 = Custom Status
+    const hasVanity = customStatus && customStatus.state && customStatus.state.includes('.gg/primegen');
+    
+    if (!isVip && (!hasFreeRole || !hasVanity)) {
+      return interaction.editReply({
+        content: '❌ **Accès Refusé !** Tu dois mettre `.gg/primegen` dans ton statut personnalisé Discord pour utiliser le générateur gratuit ! (Ou achète le VIP 💎)'
+      });
+    }
   }
 
   // Cooldown Check
