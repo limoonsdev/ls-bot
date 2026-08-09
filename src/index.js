@@ -158,6 +158,10 @@ class NextGenBot {
       try {
         await handleReady(this.client);
         
+        // Start Web API Server for Next.js Frontend
+        const { startApiServer } = require('./api/server');
+        startApiServer(this.client);
+        
         // Load emojis for the first guild (or main guild)
         const guild = this.client.guilds.cache.first();
         if (guild) {
