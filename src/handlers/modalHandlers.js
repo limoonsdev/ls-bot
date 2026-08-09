@@ -360,6 +360,59 @@ function registerModalHandlers(client) {
           user: interaction.user.tag
         });
       }
+
+      // PrimeTools Modals
+      if (customId === 'modal_discord_token') {
+        const token = interaction.fields.getTextInputValue('token_input');
+        // Decode base64 id from token
+        let userId = 'Unknown';
+        try {
+          userId = Buffer.from(token.split('.')[0], 'base64').toString();
+        } catch(e) {}
+        
+        await interaction.reply({
+          content: `🤖 **Discord Token Info:**\n\`\`\`\nToken: ${token.substring(0, 20)}...\nExtracted User ID: ${userId}\nStatus: Simulation Mode (Token APIs are blocked)\n\`\`\``,
+          ephemeral: true
+        });
+      }
+
+      if (customId === 'modal_discord_age') {
+        const id = interaction.fields.getTextInputValue('id_input');
+        // Discord Snowflake to Date (Discord epoch is 1420070400000)
+        try {
+          const timestamp = Number((BigInt(id) >> 22n) + 1420070400000n);
+          const date = new Date(timestamp);
+          await interaction.reply({
+            content: `📅 **Discord Account Age:**\n\`\`\`\nUser ID: ${id}\nCreated At: ${date.toUTCString()}\nTimestamp: <t:${Math.floor(timestamp/1000)}:R>\n\`\`\``,
+            ephemeral: true
+          });
+        } catch(e) {
+          await interaction.reply({ content: '❌ Invalid Discord ID.', ephemeral: true });
+        }
+      }
+
+      if (customId === 'modal_discord_avatar') {
+        const id = interaction.fields.getTextInputValue('id_input');
+        await interaction.reply({
+          content: `🖼️ **Avatar & Banner:**\n*To view full avatar, click here:* https://discord.com/users/${id}\n*(Discord prevents direct API fetching of banners without bot authentication)*`,
+          ephemeral: true
+        });
+      }
+
+      if (customId === 'tool_2fa_modal') {
+        const secret = interaction.fields.getTextInputValue('2fa_secret').replace(/\s+/g, '').toUpperCase();
+        try {
+          const authenticator = require('otplib').authenticator;
+          const code = authenticator.generate(secret);
+          await interaction.reply({
+            content: `🔑 **2FA Authenticator Code:**\n\`\`\`\n${code}\n\`\`\`\n*(Code regenerates every 30 seconds)*`,
+            ephemeral: true
+          });
+        } catch(e) {
+          await interaction.reply({ content: '❌ Invalid 2FA Secret Key.', ephemeral: true });
+        }
+      }
+
     } catch (error) {
       logger.error('ModalHandler', 'Error handling modal', { 
         customId, 

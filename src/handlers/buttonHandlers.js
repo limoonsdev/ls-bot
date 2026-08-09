@@ -851,7 +851,7 @@ async function handlePrimeStockRefresh(interaction) {
     const panel = await buildPrimeStockPanel(interaction.guild);
     
     await interaction.editReply({ embeds: [panel.embed], components: panel.components });
-  } catch (error) {
+  } catch (err) {
     console.error('Prime stock refresh error:', error);
     await interaction.followUp({ content: '❌ Failed to refresh panel', flags: 64 });
   }
@@ -861,7 +861,7 @@ async function handlePrimeStockRefresh(interaction) {
  * Handle PrimeTools (VIP Utilities)
  */
 async function handlePrimeTools(interaction) {
-  const customId = interaction.customId;
+  const toolId = interaction.isStringSelectMenu() ? interaction.values[0] : interaction.customId;
 
   // Check VIP role
   const config = await getOrCreateGuildConfig(interaction.guild.id);
@@ -880,168 +880,43 @@ async function handlePrimeTools(interaction) {
   }
 
   try {
-    if (customId === 'tool_tempmail') {
-      // 1secmail without API call to avoid 403 on VPS
-      const randomString = Math.random().toString(36).substring(2, 12);
-      const email = `${randomString}@1secmail.com`;
-      
-      const embed = new EmbedBuilder()
-        .setTitle('📧 Temp Mail Generator')
-        .setDescription(`Here is your temporary email address:\n\n\`${email}\`\n\n*Click the button below to check your inbox directly in your browser.*`)
-        .setColor(0x00FF00);
-      
-      const inboxBtn = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setLabel('Check Inbox')
-          .setStyle(ButtonStyle.Link)
-          .setURL(`https://www.1secmail.com/mailbox/?email=${email}`)
-      );
-        
-      await interaction.reply({ embeds: [embed], components: [inboxBtn], ephemeral: true });
-      
-    } else if (toolId === 'tool_fakecc') {
-      // Basic Fake CC Gen algorithm for testing
-      const prefixes = ["4539", "4556", "4916", "4532", "4929", "40240071", "4485", "4716", "4"];
-      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-      let cc = prefix;
-      while (cc.length < 15) { cc += Math.floor(Math.random() * 10); }
-      // Luhn algorithm calculation
-      let sum = 0;
-      let toggle = true;
-      for (let i = cc.length - 1; i >= 0; i--) {
-        let n = parseInt(cc.charAt(i), 10);
-        if (toggle) {
-          n *= 2;
-          if (n > 9) n -= 9;
-        }
-        sum += n;
-        toggle = !toggle;
-      }
-      cc += (sum * 9) % 10; // Check digit
-
-      const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-      const year = String(Math.floor(Math.random() * 5) + 26); // 2026-2030
-      const cvv = String(Math.floor(Math.random() * 900) + 100);
-
-      await interaction.reply({
-        content: `💳 **Fake Credit Card Generated:**\n\`\`\`\nNumber: ${cc}\nExp: ${month}/${year}\nCVV: ${cvv}\n\`\`\`\n*Note: This is algorithmic fake data for testing purposes only.*`,
-        ephemeral: true
-      });
-
-    } else if (toolId === 'tool_identity') {
-      const names = ["Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Sam", "Jamie"];
-      const lastNames = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller"];
-      const cities = ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "London", "Paris", "Berlin"];
-      
-      const name = `${names[Math.floor(Math.random() * names.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
-      const dob = `${Math.floor(Math.random() * 28) + 1}/${Math.floor(Math.random() * 12) + 1}/${Math.floor(Math.random() * 30) + 1970}`;
-      const city = cities[Math.floor(Math.random() * cities.length)];
-      const phone = `+1 (${Math.floor(Math.random() * 800) + 200}) ${Math.floor(Math.random() * 800) + 200}-${Math.floor(Math.random() * 8999) + 1000}`;
-
-      await interaction.reply({
-        content: `👤 **Random Identity Generated:**\n\`\`\`\nName: ${name}\nDOB: ${dob}\nLocation: ${city}\nPhone: ${phone}\n\`\`\``,
-        ephemeral: true
-      });
-
-    } else if (toolId === 'tool_uuid') {
-      const uuid = require('crypto').randomUUID();
-      await interaction.reply({
-        content: `🏷️ **Fresh UUID v4:**\n\`\`\`\n${uuid}\n\`\`\``,
-        ephemeral: true
-      });
-
-    } else if (toolId === 'tool_proxy') {
-      await interaction.deferReply({ ephemeral: true });
-      try {
-        const axios = require('axios');
-        // Fetch from a free proxy API
-        const res = await axios.get('https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt');
-        const proxies = res.data.split('\n').filter(p => p.trim().length > 5);
-        const randomProxies = [];
-        for(let i=0; i<3; i++) {
-          randomProxies.push(proxies[Math.floor(Math.random() * proxies.length)]);
-        }
-        await interaction.editReply(`🌐 **Here are 3 Random HTTP Proxies:**\n\`\`\`\n${randomProxies.join('\n')}\n\`\`\``);
-      } catch (err) {
-        await interaction.editReply('❌ Failed to fetch proxies at this time.');
-      }
-
-    } else if (toolId === 'tool_passgen') {
-      const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
-      let password = "";
-      for (let i = 0, n = charset.length; i < 16; ++i) {
-        password += charset.charAt(Math.floor(Math.random() * n));
-      }
-      
-      await interaction.reply({
-        content: `🔐 **Your Secure Password:**\n\`\`\`\n${password}\n\`\`\``,
-        ephemeral: true
-      });
-      
-    } else if (toolId === 'tool_history') {
-      await interaction.deferReply({ ephemeral: true });
-      const userId = interaction.user.id;
-      const { query } = require('../database/hybridPool');
-      const result = await query(
-        "SELECT service_id, details->>'combo' as combo_data, created_at FROM user_history WHERE user_id = $1 AND action = 'GENERATION' ORDER BY created_at DESC LIMIT 5",
-        [userId]
-      );
-      
-      if (result.rows.length === 0) {
-        return interaction.editReply({ content: '📜 You have not generated any accounts yet.' });
-      }
-
-      let historyList = '';
-      for (const row of result.rows) {
-        historyList += `**${row.service_id.toUpperCase()}** - <t:${Math.floor(new Date(row.created_at).getTime() / 1000)}:R>\n\`${row.combo_data}\`\n\n`;
-      }
-      
-      const embed = new EmbedBuilder()
-        .setTitle('📜 Your Recent Generations')
-        .setDescription(historyList)
-        .setColor(0x3498DB);
-        
-      await interaction.editReply({ embeds: [embed] });
-      
-    } else if (toolId === 'tool_2fa') {
+    if (toolId === 'tool_discord_token') {
       const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-      const modal = new ModalBuilder()
-        .setCustomId('tool_2fa_modal')
-        .setTitle('2FA Authenticator');
-
+      const modal = new ModalBuilder().setCustomId('modal_discord_token').setTitle('🤖 Discord Token Checker');
       const input = new TextInputBuilder()
-        .setCustomId('2fa_secret')
-        .setLabel('Enter 2FA Secret Key')
+        .setCustomId('token_input')
+        .setLabel('Paste the Discord Token here')
         .setStyle(TextInputStyle.Short)
         .setRequired(true);
-
-      const actionRow = new ActionRowBuilder().addComponents(input);
-      modal.addComponents(actionRow);
-
+      modal.addComponents(new ActionRowBuilder().addComponents(input));
       await interaction.showModal(modal);
 
-    } else if (toolId === 'tool_iban') {
-      // Fake FR IBAN
-      const randomDigits = Math.floor(Math.random() * 1000000000000000).toString().padStart(15, '0');
-      const iban = `FR7630004000${randomDigits}`;
-      await interaction.reply({
-        content: `🏦 **Fake IBAN Generated:**\n\`\`\`\n${iban}\n\`\`\`\n*Note: This is algorithmic fake data for testing purposes only.*`,
-        ephemeral: true
-      });
-      
-    } else if (toolId === 'tool_mac') {
-      const hexDigits = "0123456789ABCDEF";
-      let mac = "";
-      for (let i = 0; i < 6; i++) {
-        mac += hexDigits.charAt(Math.floor(Math.random() * 16));
-        mac += hexDigits.charAt(Math.floor(Math.random() * 16));
-        if (i !== 5) mac += ":";
-      }
-      await interaction.reply({
-        content: `📱 **Random MAC Address:**\n\`\`\`\n${mac}\n\`\`\``,
-        ephemeral: true
-      });
-      
+    } else if (toolId === 'tool_discord_age') {
+      const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+      const modal = new ModalBuilder().setCustomId('modal_discord_age').setTitle('📅 Account Age Checker');
+      const input = new TextInputBuilder()
+        .setCustomId('id_input')
+        .setLabel('Enter the Discord User ID')
+        .setStyle(TextInputStyle.Short)
+        .setMinLength(17)
+        .setMaxLength(20)
+        .setRequired(true);
+      modal.addComponents(new ActionRowBuilder().addComponents(input));
+      await interaction.showModal(modal);
+
+    } else if (toolId === 'tool_discord_avatar') {
+      const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+      const modal = new ModalBuilder().setCustomId('modal_discord_avatar').setTitle('🖼️ Avatar & Banner Stealer');
+      const input = new TextInputBuilder()
+        .setCustomId('id_input')
+        .setLabel('Enter the Discord User ID')
+        .setStyle(TextInputStyle.Short)
+        .setMinLength(17)
+        .setMaxLength(20)
+        .setRequired(true);
+      modal.addComponents(new ActionRowBuilder().addComponents(input));
+      await interaction.showModal(modal);
+
     } else if (toolId === 'tool_nitro') {
       const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
       let code = "";
@@ -1049,12 +924,71 @@ async function handlePrimeTools(interaction) {
         code += chars.charAt(Math.floor(Math.random() * chars.length));
       }
       await interaction.reply({
-        content: `🎁 **Discord Nitro Promo Link Generated:**\n\`\`\`\nhttps://discord.com/billing/promotions/${code}\n\`\`\`\n*Note: This is just a random string for scraping/testing purposes, it will not actually grant Nitro.*`,
+        content: `🎁 **Discord Nitro Promo Link Generated:**\n\`\`\`\nhttps://discord.com/billing/promotions/${code}\n\`\`\`\n*Note: This is an algorithmic string for scraping/testing purposes.*`,
         ephemeral: true
       });
-      
+
+    } else if (toolId === 'tool_tempmail') {
+      const randomString = Math.random().toString(36).substring(2, 12);
+      const email = `${randomString}@1secmail.com`;
+      const embed = new EmbedBuilder()
+        .setTitle('📧 Temp Mail Generator')
+        .setDescription(`Here is your temporary email address:\n\n\`${email}\`\n\n*Click the button below to check your inbox directly in your browser.*`)
+        .setColor(0x00FF00);
+      const inboxBtn = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setLabel('Check Inbox').setStyle(ButtonStyle.Link).setURL(`https://www.1secmail.com/mailbox/?email=${email}`)
+      );
+      await interaction.reply({ embeds: [embed], components: [inboxBtn], ephemeral: true });
+
+    } else if (toolId === 'tool_passgen') {
+      const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
+      let password = "";
+      for (let i = 0, n = charset.length; i < 16; ++i) password += charset.charAt(Math.floor(Math.random() * n));
+      await interaction.reply({ content: `🔐 **Your Secure Password:**\n\`\`\`\n${password}\n\`\`\``, ephemeral: true });
+
+    } else if (toolId === 'tool_fakecc') {
+      const prefixes = ["4539", "4556", "4916", "4532", "4929", "40240071", "4485", "4716", "4"];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      let cc = prefix;
+      while (cc.length < 15) { cc += Math.floor(Math.random() * 10); }
+      let sum = 0, toggle = true;
+      for (let i = cc.length - 1; i >= 0; i--) {
+        let n = parseInt(cc.charAt(i), 10);
+        if (toggle) { n *= 2; if (n > 9) n -= 9; }
+        sum += n; toggle = !toggle;
+      }
+      cc += (sum * 9) % 10;
+      const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
+      const year = String(Math.floor(Math.random() * 5) + 26);
+      const cvv = String(Math.floor(Math.random() * 900) + 100);
+      await interaction.reply({ content: `💳 **Fake Credit Card Generated:**\n\`\`\`\nNumber: ${cc}\nExp: ${month}/${year}\nCVV: ${cvv}\n\`\`\`\n*Note: Algorithmic fake data.*`, ephemeral: true });
+
+    } else if (toolId === 'tool_proxy') {
+      await interaction.deferReply({ ephemeral: true });
+      try {
+        const axios = require('axios');
+        const res = await axios.get('https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt');
+        const proxies = res.data.split('\n').filter(p => p.trim().length > 5);
+        const randomProxies = [];
+        for(let i=0; i<3; i++) randomProxies.push(proxies[Math.floor(Math.random() * proxies.length)]);
+        await interaction.editReply(`🌐 **Here are 3 Random HTTP Proxies:**\n\`\`\`\n${randomProxies.join('\n')}\n\`\`\``);
+      } catch (err) {
+        await interaction.editReply('❌ Failed to fetch proxies at this time.');
+      }
+
+    } else if (toolId === 'tool_history') {
+      await interaction.deferReply({ ephemeral: true });
+      const userId = interaction.user.id;
+      const { query } = require('../database/hybridPool');
+      const result = await query("SELECT service_id, details->>'combo' as combo_data, created_at FROM user_history WHERE user_id = $1 AND action = 'GENERATION' ORDER BY created_at DESC LIMIT 5", [userId]);
+      if (result.rows.length === 0) return interaction.editReply({ content: '📜 You have not generated any accounts yet.' });
+      let historyList = '';
+      for (const row of result.rows) historyList += `**${row.service_id.toUpperCase()}** - <t:${Math.floor(new Date(row.created_at).getTime() / 1000)}:R>\n\`${row.combo_data}\`\n\n`;
+      const embed = new EmbedBuilder().setTitle('📜 Your Recent Generations').setDescription(historyList).setColor(0x3498DB);
+      await interaction.editReply({ embeds: [embed] });
+
     } else {
-      await interaction.reply({ content: '❓ Unknown PrimeTool.', ephemeral: true });
+      await interaction.reply({ content: '❓ Unknown PrimeTool or Not Yet Implemented.', ephemeral: true });
     }
   } catch (err) {
     logger.error('PrimeTools', 'Error executing tool', { error: err.message });

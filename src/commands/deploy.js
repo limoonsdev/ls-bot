@@ -769,27 +769,25 @@ async function buildVipPricePanel(guild) {
  */
 async function buildPrimeToolsPanel(guild) {
   const embed = new EmbedBuilder()
-    .setTitle('💎 PRIME TOOLS - THE ULTIMATE ARSENAL 💎')
+    .setTitle('<a:nitro:123456789012345678> PRIME TOOLS - ULTIMATE ARSENAL <a:nitro:123456789012345678>')
     .setDescription(
       '**Welcome to the V.I.P Command Center.**\n' +
-      'Here you have access to a suite of ultra-premium tools designed for professionals. No limits. No restrictions.\n\n' +
+      'Here you have access to a suite of ultra-premium tools designed for professionals.\n\n' +
+      '**🎮 Discord Utilities**\n' +
+      '├ 🤖 **Token Checker:** Get info from a Discord Token\n' +
+      '├ 📅 **Account Age:** Check creation date from User ID\n' +
+      '├ 🖼️ **Avatar Stealer:** Download any User Avatar/Banner\n' +
+      '└ 🎁 **Nitro Promo:** Promo link generator\n\n' +
       '**🔒 Security & Privacy**\n' +
       '├ 📧 **Temp Mail:** Instant disposable inbox\n' +
-      '├ 🔑 **2FA Auth:** Generate 2FA tokens from secret keys\n' +
       '└ 🔐 **Pass Gen:** Military-grade password generator\n\n' +
-      '**🛠️ Data Generation**\n' +
+      '**🛠️ Data & Networking**\n' +
       '├ 💳 **Fake CC:** Luhn-valid Credit Card generator\n' +
-      '├ 👤 **Fake ID:** Complete random identity generator\n' +
-      '├ 🏦 **IBAN Gen:** Valid European IBAN generator\n' +
-      '├ 📱 **MAC Gen:** Random device MAC address\n' +
-      '└ 🏷️ **UUID Gen:** RFC 4122 v4 UUID generator\n\n' +
-      '**🌐 Networking & Fun**\n' +
       '├ 🕸️ **Proxy Scraper:** Live HQ HTTP proxies\n' +
-      '├ 🎁 **Nitro Promo:** Promo link generator\n' +
       '└ 📜 **My History:** View your last generations\n\n' +
       '*Select a tool from the dropdown menu below to execute it instantly.*'
     )
-    .setColor('#00FFCC') // Futuristic Cyan
+    .setColor('#00FFCC')
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
       text: '💎 PrimeTools • Powered by PrimeGen AI',
@@ -802,16 +800,14 @@ async function buildPrimeToolsPanel(guild) {
     .setCustomId('select_primetools')
     .setPlaceholder('⚡ Select an exclusive V.I.P tool...')
     .addOptions([
+      { label: 'Discord Token Checker', description: 'Get info from a Discord Token', emoji: '🤖', value: 'tool_discord_token' },
+      { label: 'Discord Account Age', description: 'Check creation date from a User ID', emoji: '📅', value: 'tool_discord_age' },
+      { label: 'Avatar & Banner Stealer', description: 'Download avatar and banner from User ID', emoji: '🖼️', value: 'tool_discord_avatar' },
+      { label: 'Nitro Promo Gen', description: 'Generate a Discord Nitro Promo link', emoji: '🎁', value: 'tool_nitro' },
       { label: 'Temp Mail', description: 'Generate a disposable email', emoji: '📧', value: 'tool_tempmail' },
-      { label: '2FA Auth', description: 'Get a 2FA code from a secret', emoji: '🔑', value: 'tool_2fa' },
       { label: 'Secure Pass', description: 'Generate a strong password', emoji: '🔐', value: 'tool_passgen' },
       { label: 'Fake CC', description: 'Generate a test credit card', emoji: '💳', value: 'tool_fakecc' },
-      { label: 'Fake Identity', description: 'Generate a full random identity', emoji: '👤', value: 'tool_identity' },
-      { label: 'IBAN Generator', description: 'Generate a fake IBAN', emoji: '🏦', value: 'tool_iban' },
-      { label: 'MAC Address', description: 'Generate a random MAC', emoji: '📱', value: 'tool_mac' },
-      { label: 'UUID Gen', description: 'Generate a fresh UUID', emoji: '🏷️', value: 'tool_uuid' },
       { label: 'Proxy Scraper', description: 'Fetch live HTTP proxies', emoji: '🕸️', value: 'tool_proxy' },
-      { label: 'Nitro Promo', description: 'Generate a Nitro Promo link', emoji: '🎁', value: 'tool_nitro' },
       { label: 'Generation History', description: 'View your 5 last generated accounts', emoji: '📜', value: 'tool_history' }
     ]);
 
