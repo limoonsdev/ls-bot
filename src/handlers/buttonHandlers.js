@@ -88,6 +88,14 @@ async function handleGenButton(interaction) {
   const serviceId = parts.slice(2).join('_');
   const userId = interaction.user.id;
   const now = Date.now();
+  const customStatus = interaction.member.presence?.activities.find(a => a.type === 4); // 4 = Custom Status
+  const hasVanity = customStatus && customStatus.state && customStatus.state.includes('.gg/primegen');
+
+  if (!hasVanity) {
+    return interaction.editReply({
+      content: '❌ **Accès Refusé !** Tu dois mettre `.gg/primegen` dans ton statut personnalisé Discord pour utiliser le générateur ! (Obligatoire même pour les VIP 💎)'
+    });
+  }
 
   // Check Premium role if tier is premium
   if (tier === 'premium' && !interaction.member.roles.cache.has('1532346926425444474')) {
@@ -96,19 +104,11 @@ async function handleGenButton(interaction) {
     });
   }
 
-  // Check Free tier requirements (Status or VIP)
-  if (tier === 'free') {
-    const isVip = interaction.member.roles.cache.has('1532346926425444474');
-    const hasFreeRole = interaction.member.roles.cache.has('1532347064623698010');
-    
-    const customStatus = interaction.member.presence?.activities.find(a => a.type === 4); // 4 = Custom Status
-    const hasVanity = customStatus && customStatus.state && customStatus.state.includes('.gg/primegen');
-    
-    if (!isVip && (!hasFreeRole || !hasVanity)) {
-      return interaction.editReply({
-        content: '❌ **Accès Refusé !** Tu dois mettre `.gg/primegen` dans ton statut personnalisé Discord pour utiliser le générateur gratuit ! (Ou achète le VIP 💎)'
-      });
-    }
+  // Check Free role if tier is free
+  if (tier === 'free' && !interaction.member.roles.cache.has('1532347064623698010')) {
+    return interaction.editReply({
+      content: '❌ Tu n\'as pas accès à ce panel ! Mets `.gg/primegen` dans ton statut pour obtenir le rôle Free.'
+    });
   }
 
   // Cooldown Check
