@@ -3,6 +3,9 @@
   "version": "2.5.0",
   "description": "PrimeGen Bot - Ultra Edition with Advanced Features",
   "main": "src/index.js",
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
