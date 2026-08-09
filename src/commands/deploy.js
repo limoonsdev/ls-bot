@@ -769,42 +769,55 @@ async function buildVipPricePanel(guild) {
  */
 async function buildPrimeToolsPanel(guild) {
   const embed = new EmbedBuilder()
-    .setTitle('🛠️ PrimeTools - VIP Exclusive')
+    .setTitle('💎 PRIME TOOLS - THE ULTIMATE ARSENAL 💎')
     .setDescription(
-      '**Welcome to the PrimeTools Hub!**\n\n' +
-      'Here you can access all the exclusive utilities reserved for our V.I.P members.\n\n' +
-      '> 📧 **Temp Mail:** Generate a temporary email instantly.\n' +
-      '> 🔐 **Pass Gen:** Create a highly secure, unbreakable password.\n' +
-      '> 📜 **Gen History:** View the last accounts you generated.\n' +
-      '> 🔑 **2FA Code:** Get an authenticator code using a 2FA secret.\n' +
-      '> 💳 **Fake CC:** Generate fake credit card numbers for testing.\n' +
-      '> 👤 **Fake ID:** Generate a random fake identity.\n' +
-      '> 🏷️ **UUID Gen:** Generate a fresh UUID v4.\n' +
-      '> 🌐 **Proxy:** Grab a random high-quality HTTP proxy.\n\n' +
-      '*These tools are strictly reserved for users with a V.I.P role.*'
+      '**Welcome to the V.I.P Command Center.**\n' +
+      'Here you have access to a suite of ultra-premium tools designed for professionals. No limits. No restrictions.\n\n' +
+      '**🔒 Security & Privacy**\n' +
+      '├ 📧 **Temp Mail:** Instant disposable inbox\n' +
+      '├ 🔑 **2FA Auth:** Generate 2FA tokens from secret keys\n' +
+      '└ 🔐 **Pass Gen:** Military-grade password generator\n\n' +
+      '**🛠️ Data Generation**\n' +
+      '├ 💳 **Fake CC:** Luhn-valid Credit Card generator\n' +
+      '├ 👤 **Fake ID:** Complete random identity generator\n' +
+      '├ 🏦 **IBAN Gen:** Valid European IBAN generator\n' +
+      '├ 📱 **MAC Gen:** Random device MAC address\n' +
+      '└ 🏷️ **UUID Gen:** RFC 4122 v4 UUID generator\n\n' +
+      '**🌐 Networking & Fun**\n' +
+      '├ 🕸️ **Proxy Scraper:** Live HQ HTTP proxies\n' +
+      '├ 🎁 **Nitro Promo:** Promo link generator\n' +
+      '└ 📜 **My History:** View your last generations\n\n' +
+      '*Select a tool from the dropdown menu below to execute it instantly.*'
     )
-    .setColor('#FF00FF')
+    .setColor('#00FFCC') // Futuristic Cyan
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: '🛠️ PrimeTools • Ultimate VIP Arsenal',
+      text: '💎 PrimeTools • Powered by PrimeGen AI',
       iconURL: 'https://i.goopics.net/2eukvn.gif'
     })
     .setTimestamp();
 
-  const btnTempMail = new ButtonBuilder().setCustomId('tool_tempmail').setLabel('📧 Temp Mail').setStyle(ButtonStyle.Primary);
-  const btnPassGen = new ButtonBuilder().setCustomId('tool_passgen').setLabel('🔐 Secure Pass').setStyle(ButtonStyle.Success);
-  const btnHistory = new ButtonBuilder().setCustomId('tool_history').setLabel('📜 My Gens').setStyle(ButtonStyle.Secondary);
-  const btn2fa = new ButtonBuilder().setCustomId('tool_2fa').setLabel('🔑 2FA Auth').setStyle(ButtonStyle.Danger);
-  const btnFakeCC = new ButtonBuilder().setCustomId('tool_fakecc').setLabel('💳 CC Gen').setStyle(ButtonStyle.Primary);
-  
-  const btnIdentity = new ButtonBuilder().setCustomId('tool_identity').setLabel('👤 Fake ID').setStyle(ButtonStyle.Success);
-  const btnUUID = new ButtonBuilder().setCustomId('tool_uuid').setLabel('🏷️ UUID Gen').setStyle(ButtonStyle.Secondary);
-  const btnProxy = new ButtonBuilder().setCustomId('tool_proxy').setLabel('🌐 Get Proxy').setStyle(ButtonStyle.Primary);
+  const { StringSelectMenuBuilder } = require('discord.js');
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId('select_primetools')
+    .setPlaceholder('⚡ Select an exclusive V.I.P tool...')
+    .addOptions([
+      { label: 'Temp Mail', description: 'Generate a disposable email', emoji: '📧', value: 'tool_tempmail' },
+      { label: '2FA Auth', description: 'Get a 2FA code from a secret', emoji: '🔑', value: 'tool_2fa' },
+      { label: 'Secure Pass', description: 'Generate a strong password', emoji: '🔐', value: 'tool_passgen' },
+      { label: 'Fake CC', description: 'Generate a test credit card', emoji: '💳', value: 'tool_fakecc' },
+      { label: 'Fake Identity', description: 'Generate a full random identity', emoji: '👤', value: 'tool_identity' },
+      { label: 'IBAN Generator', description: 'Generate a fake IBAN', emoji: '🏦', value: 'tool_iban' },
+      { label: 'MAC Address', description: 'Generate a random MAC', emoji: '📱', value: 'tool_mac' },
+      { label: 'UUID Gen', description: 'Generate a fresh UUID', emoji: '🏷️', value: 'tool_uuid' },
+      { label: 'Proxy Scraper', description: 'Fetch live HTTP proxies', emoji: '🕸️', value: 'tool_proxy' },
+      { label: 'Nitro Promo', description: 'Generate a Nitro Promo link', emoji: '🎁', value: 'tool_nitro' },
+      { label: 'Generation History', description: 'View your 5 last generated accounts', emoji: '📜', value: 'tool_history' }
+    ]);
 
-  const row1 = new ActionRowBuilder().addComponents(btnTempMail, btnPassGen, btnHistory, btn2fa, btnFakeCC);
-  const row2 = new ActionRowBuilder().addComponents(btnIdentity, btnUUID, btnProxy);
+  const row = new ActionRowBuilder().addComponents(selectMenu);
 
-  return { embeds: [embed], components: [row1, row2] };
+  return { embeds: [embed], components: [row] };
 }
 
 module.exports = { command, execute, buildBasicPanels, buildPrimePanel, buildPrimeStockPanel, buildStockPanel, buildFAQPanel, buildShopPanel, buildVipPricePanel, buildPrimeToolsPanel };

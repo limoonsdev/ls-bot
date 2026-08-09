@@ -899,7 +899,7 @@ async function handlePrimeTools(interaction) {
         
       await interaction.reply({ embeds: [embed], components: [inboxBtn], ephemeral: true });
       
-    } else if (customId === 'tool_fakecc') {
+    } else if (toolId === 'tool_fakecc') {
       // Basic Fake CC Gen algorithm for testing
       const prefixes = ["4539", "4556", "4916", "4532", "4929", "40240071", "4485", "4716", "4"];
       const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
@@ -928,7 +928,7 @@ async function handlePrimeTools(interaction) {
         ephemeral: true
       });
 
-    } else if (customId === 'tool_identity') {
+    } else if (toolId === 'tool_identity') {
       const names = ["Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Sam", "Jamie"];
       const lastNames = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller"];
       const cities = ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "London", "Paris", "Berlin"];
@@ -943,14 +943,14 @@ async function handlePrimeTools(interaction) {
         ephemeral: true
       });
 
-    } else if (customId === 'tool_uuid') {
+    } else if (toolId === 'tool_uuid') {
       const uuid = require('crypto').randomUUID();
       await interaction.reply({
         content: `🏷️ **Fresh UUID v4:**\n\`\`\`\n${uuid}\n\`\`\``,
         ephemeral: true
       });
 
-    } else if (customId === 'tool_proxy') {
+    } else if (toolId === 'tool_proxy') {
       await interaction.deferReply({ ephemeral: true });
       try {
         const axios = require('axios');
@@ -966,7 +966,7 @@ async function handlePrimeTools(interaction) {
         await interaction.editReply('❌ Failed to fetch proxies at this time.');
       }
 
-    } else if (customId === 'tool_passgen') {
+    } else if (toolId === 'tool_passgen') {
       const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
       let password = "";
       for (let i = 0, n = charset.length; i < 16; ++i) {
@@ -978,7 +978,7 @@ async function handlePrimeTools(interaction) {
         ephemeral: true
       });
       
-    } else if (customId === 'tool_history') {
+    } else if (toolId === 'tool_history') {
       await interaction.deferReply({ ephemeral: true });
       const userId = interaction.user.id;
       const { query } = require('../database/hybridPool');
@@ -1003,7 +1003,7 @@ async function handlePrimeTools(interaction) {
         
       await interaction.editReply({ embeds: [embed] });
       
-    } else if (customId === 'tool_2fa') {
+    } else if (toolId === 'tool_2fa') {
       const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
       const modal = new ModalBuilder()
         .setCustomId('tool_2fa_modal')
@@ -1015,8 +1015,46 @@ async function handlePrimeTools(interaction) {
         .setStyle(TextInputStyle.Short)
         .setRequired(true);
 
-      modal.addComponents(new ActionRowBuilder().addComponents(input));
+      const actionRow = new ActionRowBuilder().addComponents(input);
+      modal.addComponents(actionRow);
+
       await interaction.showModal(modal);
+
+    } else if (toolId === 'tool_iban') {
+      // Fake FR IBAN
+      const randomDigits = Math.floor(Math.random() * 1000000000000000).toString().padStart(15, '0');
+      const iban = `FR7630004000${randomDigits}`;
+      await interaction.reply({
+        content: `🏦 **Fake IBAN Generated:**\n\`\`\`\n${iban}\n\`\`\`\n*Note: This is algorithmic fake data for testing purposes only.*`,
+        ephemeral: true
+      });
+      
+    } else if (toolId === 'tool_mac') {
+      const hexDigits = "0123456789ABCDEF";
+      let mac = "";
+      for (let i = 0; i < 6; i++) {
+        mac += hexDigits.charAt(Math.floor(Math.random() * 16));
+        mac += hexDigits.charAt(Math.floor(Math.random() * 16));
+        if (i !== 5) mac += ":";
+      }
+      await interaction.reply({
+        content: `📱 **Random MAC Address:**\n\`\`\`\n${mac}\n\`\`\``,
+        ephemeral: true
+      });
+      
+    } else if (toolId === 'tool_nitro') {
+      const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      let code = "";
+      for (let i = 0; i < 16; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      await interaction.reply({
+        content: `🎁 **Discord Nitro Promo Link Generated:**\n\`\`\`\nhttps://discord.com/billing/promotions/${code}\n\`\`\`\n*Note: This is just a random string for scraping/testing purposes, it will not actually grant Nitro.*`,
+        ephemeral: true
+      });
+      
+    } else {
+      await interaction.reply({ content: '❓ Unknown PrimeTool.', ephemeral: true });
     }
   } catch (err) {
     logger.error('PrimeTools', 'Error executing tool', { error: err.message });
