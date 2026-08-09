@@ -7,9 +7,9 @@ Ajoute ou modifie ces enregistrements pour qu'ils pointent vers l'adresse IP de 
 
 | Type | Nom d'hôte (Host) | Valeur (Pointe vers) |
 | :--- | :--- | :--- |
-| **A** | `@` (ou vide) | `L'adresse IP de ton VPS` (ex: `123.45.67.89`) |
-| **A** | `www` | `L'adresse IP de ton VPS` |
-| **A** | `api` *(Optionnel, pour le bot)* | `L'adresse IP de ton VPS` |
+| **A** | `@` (ou vide) | `72.61.192.44` |
+| **A** | `www` | `72.61.192.44` |
+| **A** | `api` *(Optionnel, pour le bot)* | `72.61.192.44` |
 
 *(Note : Supprime tous les autres enregistrements de type A ou AAAA par défaut créés par Ionos pour éviter les conflits).*
 
