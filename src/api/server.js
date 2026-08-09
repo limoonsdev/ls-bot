@@ -13,7 +13,11 @@ function startApiServer(client) {
   const PORT = process.env.API_PORT || 3001;
   const MAIN_GUILD_ID = '1532343959722917979';
 
-  app.use(cors());
+  app.use(cors({
+    origin: '*', // You can restrict this to your Vercel URL later
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  }));
   app.use(express.json());
 
   // Middleware to attach discord client
@@ -25,6 +29,16 @@ function startApiServer(client) {
   // Health check
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', bot: req.client.user?.tag });
+  });
+
+  const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '111111111111111111';
+  // Note: the redirect URI will be handled by the Vercel frontend, this is a fallback if needed
+  const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'http://localhost:3000/callback';
+
+  // OAuth2 Login Redirect (Fallback)
+  app.get('/api/auth/login', (req, res) => {
+    const authUrl = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&scope=identify`;
+    res.redirect(authUrl);
   });
 
   // Get all services/generators

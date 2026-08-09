@@ -158,10 +158,6 @@ class NextGenBot {
       try {
         await handleReady(this.client);
         
-        // Start Web API Server for Next.js Frontend
-        const { startApiServer } = require('./api/server');
-        startApiServer(this.client);
-        
         // Load emojis for the first guild (or main guild)
         const guild = this.client.guilds.cache.first();
         if (guild) {
@@ -257,15 +253,15 @@ class NextGenBot {
       
       logger.info('Bot', '✅ Bot started successfully');
       
-      // Start web server for OAuth2
-      const { startServer } = require('./web/server');
-      const webPort = process.env.WEB_PORT || 3000;
+      // Start web server for API
+      const { startApiServer } = require('./api/server');
+      const webPort = process.env.WEB_PORT || 3001;
       
       try {
-        await startServer(webPort);
-        logger.info('Bot', `✅ Web server started on port ${webPort}`);
+        await startApiServer(this.client, webPort);
+        logger.info('Bot', `✅ API server started on port ${webPort}`);
       } catch (error) {
-        logger.warn('Bot', `⚠️  Web server failed to start: ${error.message}`);
+        logger.warn('Bot', `⚠️  API server failed to start: ${error.message}`);
       }
       
     } catch (error) {
