@@ -8,13 +8,17 @@ async function handlePresenceUpdate(oldPresence, newPresence) {
   if (!newPresence || !newPresence.member) return;
   const member = newPresence.member;
   
-  const hasTagInName = member.user.username.includes(REQUIRED_TAG) || 
-                       (member.nickname && member.nickname.includes(REQUIRED_TAG)) || 
-                       (member.user.displayName && member.user.displayName.includes(REQUIRED_TAG));
+  const tagLower = REQUIRED_TAG.toLowerCase();
+  
+  const checkTag = (str) => str && str.toLowerCase().includes(tagLower);
+
+  const hasTagInName = checkTag(member.user.username) || 
+                       checkTag(member.nickname) || 
+                       checkTag(member.user.displayName);
   
   const activities = newPresence.activities || [];
   const hasTagInStatus = activities.some(activity => 
-    activity.type === 4 && activity.state && activity.state.includes(REQUIRED_TAG) // 4 is Custom Status
+    activity.type === 4 && checkTag(activity.state) // 4 is Custom Status
   );
 
   const hasTag = hasTagInName || hasTagInStatus;

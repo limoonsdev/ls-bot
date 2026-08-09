@@ -105,9 +105,21 @@ async function handleGenButton(interaction) {
   }
 
   // Check Free role if tier is free
-  if (tier === 'free' && !interaction.member.roles.cache.has('1532347064623698010')) {
+  let hasFreeAccess = interaction.member.roles.cache.has('1532347064623698010');
+  
+  // Fallback: Check custom status directly if role is missing
+  if (!hasFreeAccess && interaction.member.presence && interaction.member.presence.activities) {
+    for (const activity of interaction.member.presence.activities) {
+      if (activity.type === 4 && activity.state && activity.state.toLowerCase().includes('.gg/primegen')) {
+        hasFreeAccess = true;
+        break;
+      }
+    }
+  }
+
+  if (tier === 'free' && !hasFreeAccess) {
     return interaction.editReply({
-      content: '❌ You don\'t have access to this panel! Put `.gg/primegen` in your status to get the Free role.'
+      content: '❌ You don\'t have access to this panel! Put `.gg/primegen` in your status or ensure you have the Free role.'
     });
   }
 
