@@ -12,16 +12,6 @@ function registerSelectHandlers(client) {
 
   // Config select handler
   
-  // PrimeTools Select Handler
-  client.selectHandlers.set('select_primetools', async (interaction) => {
-    try {
-      const { handlePrimeTools } = require('./buttonHandlers');
-      await handlePrimeTools(interaction);
-    } catch (err) {
-      logger.error('SelectHandlers', 'PrimeTools select failed', { error: err.message });
-    }
-  });
-  
   // Server List Select Handler
   client.selectHandlers.set('server_list_select', async (interaction) => {
     try {

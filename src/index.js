@@ -115,28 +115,31 @@ class NextGenBot {
    */
   async registerSlashCommands() {
     try {
-      logger.info('Bot', 'Registering slash commands with Discord...');
-
+      logger.info('Bot', 'Registering slash commands globally and clearing guild duplicates...');
+      
       const commands = this.commands.map(cmd => cmd.command.toJSON());
       const rest = new REST({ version: '10' }).setToken(config.bot.token);
+      const MAIN_GUILD_ID = '1532343959722917979';
+      
+      // 1. Delete all guild-specific commands to avoid duplicates
+      if (MAIN_GUILD_ID) {
+        try {
+          await rest.put(
+            Routes.applicationGuildCommands(config.bot.clientId, MAIN_GUILD_ID),
+            { body: [] }
+          );
+          logger.info('Bot', `✅ Cleared legacy guild-specific slash commands for guild ${MAIN_GUILD_ID}`);
+        } catch (e) {
+          logger.warn('Bot', `Could not clear guild commands: ${e.message}`);
+        }
+      }
 
+      // 2. Register all commands globally
       const data = await rest.put(
         Routes.applicationCommands(config.bot.clientId),
         { body: commands }
       );
-
-      // Force register to the specific guild to bypass Discord cache instantly
-      const MAIN_GUILD_ID = '1532343959722917979';
-      try {
-        await rest.put(
-          Routes.applicationGuildCommands(config.bot.clientId, MAIN_GUILD_ID),
-          { body: commands }
-        );
-        logger.info('Bot', `✅ Force-registered slash commands to guild ${MAIN_GUILD_ID} (Cache bypass)`);
-      } catch (err) {
-        logger.warn('Bot', `⚠️ Could not force-register to guild (maybe bot is not in it or missing perms)`);
-      }
-
+      
       logger.info('Bot', `✅ Registered ${data.length} slash commands globally`);
     } catch (error) {
       logger.error('Bot', 'Failed to register slash commands', { error: error.message });

@@ -4,27 +4,34 @@ const { parseTime } = require('../utils/timeParser');
 
 const command = new SlashCommandBuilder()
   .setName('giveaway')
-  .setDescription('🎉 Start a basic giveaway')
+  .setDescription('🎉 Start an advanced giveaway')
   .setDefaultMemberPermissions('8')
   .addStringOption(option =>
-    option.setName('lot')
-      .setDescription('What is up for grabs')
+    option.setName('prize')
+      .setDescription('The prize to win')
       .setRequired(true))
   .addStringOption(option =>
-    option.setName('duree')
-      .setDescription('The duration (e.g., 1h, 24h)')
+    option.setName('duration')
+      .setDescription('Giveaway duration (e.g., 1h, 24h, 30m)')
       .setRequired(true))
   .addIntegerOption(option =>
-    option.setName('gagnants')
-      .setDescription('Number of winners')
+    option.setName('winners')
+      .setDescription('Number of winners to pick')
+      .setMinValue(1)
+      .setMaxValue(50)
+      .setRequired(true))
+  .addRoleOption(option =>
+    option.setName('ping')
+      .setDescription('Role to ping (default: no ping)')
       .setRequired(false));
 
 async function execute(interaction) {
-  const lot = interaction.options.getString('lot');
-  const duree = interaction.options.getString('duree');
-  const gagnants = interaction.options.getInteger('gagnants') || 1;
+  const prize = interaction.options.getString('prize');
+  const durationStr = interaction.options.getString('duration');
+  const winnersCount = interaction.options.getInteger('winners');
+  const pingRole = interaction.options.getRole('ping');
   
-  const msDuration = parseTime(duree);
+  const msDuration = parseTime(durationStr);
   if (!msDuration) {
     return interaction.reply({ content: '❌ Invalid duration format (e.g., 1m, 1h, 24h).', ephemeral: true });
   }
@@ -32,41 +39,52 @@ async function execute(interaction) {
   const endTime = Math.floor((Date.now() + msDuration) / 1000);
 
   const embed = new EmbedBuilder()
-    .setTitle('🎉 GIVEAWAY PRIMEGEN')
+    .setTitle('🎉 **PRIMEGEN GIVEAWAY** 🎉')
     .setDescription(
-      '**Participate for a chance to win:**\n\n' +
-      `> 🎁 **Prize:** ${lot}\n` +
-      `> ⏱️ **Ends:** <t:${endTime}:R>\n` +
-      `> 🏆 **Winner(s):** ${gagnants}\n\n` +
+      `> 🎁 **Prize:** **${prize}**\n` +
+      `> 🏆 **Winner(s):** \`${winnersCount}\`\n` +
+      `> ⏳ **Ends:** <t:${endTime}:R> (<t:${endTime}:f>)\n` +
+      `> 👑 **Hosted by:** ${interaction.user}\n\n` +
       '**To participate:**\n' +
       'React with 🎉 under this message!'
     )
     .setColor(COLORS.PREMIUM)
     .setImage(PANEL_BANNER_URL)
+    .setFooter({ text: 'PrimeGen • Giveaway System' })
     .setTimestamp();
     
-  const message = await interaction.reply({ content: '@everyone 🎉 **NEW GIVEAWAY**', embeds: [embed], fetchReply: true });
+  const pingText = pingRole ? `<@&${pingRole.id}>` : '';
+  const message = await interaction.reply({ content: `🎉 **NEW GIVEAWAY!** ${pingText}`, embeds: [embed], fetchReply: true });
   await message.react('🎉');
 
   // Wait for the giveaway to end
   setTimeout(async () => {
     try {
-      const fetchedMessage = await interaction.channel.messages.fetch(message.id);
+      const fetchedMessage = await interaction.channel.messages.fetch(message.id).catch(() => null);
+      if (!fetchedMessage) return; // Message deleted
+
       const reaction = fetchedMessage.reactions.cache.get('🎉');
-      
       if (!reaction) return;
       
       const users = await reaction.users.fetch();
       // Exclude bots
-      const validParticipants = users.filter(u => !u.bot).map(u => u);
+      const validParticipants = Array.from(users.filter(u => !u.bot).values());
       
       if (validParticipants.length === 0) {
-        return interaction.channel.send({ content: `🥲 No one participated in the giveaway for **${lot}**...` });
+        const noParticipantsEmbed = new EmbedBuilder()
+          .setTitle('🎉 **GIVEAWAY CANCELLED**')
+          .setDescription(`> 🎁 **Prize:** **${prize}**\n\nNobody participated in the giveaway!`)
+          .setColor(COLORS.ERROR)
+          .setFooter({ text: 'PrimeGen • Giveaway System' })
+          .setTimestamp();
+        
+        await fetchedMessage.edit({ content: '~~🎉 **NEW GIVEAWAY!**~~ (Ended)', embeds: [noParticipantsEmbed] });
+        return interaction.channel.send({ content: `🥲 No one participated in the giveaway for **${prize}**...` });
       }
 
       // Pick random winners
       const winners = [];
-      const numToPick = Math.min(gagnants, validParticipants.length);
+      const numToPick = Math.min(winnersCount, validParticipants.length);
       
       for (let i = 0; i < numToPick; i++) {
         const randomIndex = Math.floor(Math.random() * validParticipants.length);
@@ -77,12 +95,19 @@ async function execute(interaction) {
       const winnersMention = winners.map(w => `<@${w.id}>`).join(', ');
 
       const endEmbed = new EmbedBuilder()
-        .setTitle('🎉 GIVEAWAY ENDED')
-        .setDescription(`> 🎁 **Prize:** ${lot}\n> 🏆 **Winners:** ${winnersMention}`)
+        .setTitle('🎉 **GIVEAWAY ENDED** 🎉')
+        .setDescription(
+          `> 🎁 **Prize:** **${prize}**\n` +
+          `> 🏆 **Winner(s):** ${winnersMention}\n` +
+          `> 👑 **Hosted by:** ${interaction.user}`
+        )
         .setColor(COLORS.SUCCESS)
+        .setImage(PANEL_BANNER_URL)
+        .setFooter({ text: 'PrimeGen • Giveaway System' })
         .setTimestamp();
 
-      await interaction.channel.send({ content: `Congratulations ${winnersMention}! You won the **${lot}**! 🎊`, embeds: [endEmbed] });
+      await fetchedMessage.edit({ content: '🎉 **GIVEAWAY ENDED!**', embeds: [endEmbed] });
+      await interaction.channel.send({ content: `Congratulations ${winnersMention}! You won the **${prize}**! 🎊\n*Please open a ticket to claim your prize!*` });
     } catch (error) {
       console.error('Error ending giveaway:', error);
     }

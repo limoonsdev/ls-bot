@@ -32,8 +32,7 @@ const command = new SlashCommandBuilder()
         { name: '📦 Stock Panel', value: 'stock' },
         { name: '❓ FAQ Panel', value: 'faq' },
         { name: '🛒 Shop Panel', value: 'shop' },
-        { name: '👑 VIP Price Panel', value: 'vip_price' },
-        { name: '🛠️ PrimeTools Panel (VIP)', value: 'primetools' }
+        { name: '👑 VIP Price Panel', value: 'vip_price' }
       ))
   .addChannelOption(option =>
     option.setName('channel')
@@ -95,10 +94,6 @@ async function execute(interaction) {
     }
     case 'vip_price': {
       panelsToDeploy.push(await buildVipPricePanel(interaction.guild));
-      break;
-    }
-    case 'primetools': {
-      panelsToDeploy.push(await buildPrimeToolsPanel(interaction.guild));
       break;
     }
     }
@@ -767,53 +762,6 @@ async function buildVipPricePanel(guild) {
 /**
  * Build PrimeTools Panel
  */
-async function buildPrimeToolsPanel(guild) {
-  const embed = new EmbedBuilder()
-    .setTitle('<a:nitro:123456789012345678> PRIME TOOLS - ULTIMATE ARSENAL <a:nitro:123456789012345678>')
-    .setDescription(
-      '**Welcome to the V.I.P Command Center.**\n' +
-      'Here you have access to a suite of ultra-premium tools designed for professionals.\n\n' +
-      '**🎮 Discord Utilities**\n' +
-      '├ 🤖 **Token Checker:** Get info from a Discord Token\n' +
-      '├ 📅 **Account Age:** Check creation date from User ID\n' +
-      '├ 🖼️ **Avatar Stealer:** Download any User Avatar/Banner\n' +
-      '└ 🎁 **Nitro Promo:** Promo link generator\n\n' +
-      '**🔒 Security & Privacy**\n' +
-      '├ 📧 **Temp Mail:** Instant disposable inbox\n' +
-      '└ 🔐 **Pass Gen:** Military-grade password generator\n\n' +
-      '**🛠️ Data & Networking**\n' +
-      '├ 💳 **Fake CC:** Luhn-valid Credit Card generator\n' +
-      '├ 🕸️ **Proxy Scraper:** Live HQ HTTP proxies\n' +
-      '└ 📜 **My History:** View your last generations\n\n' +
-      '*Select a tool from the dropdown menu below to execute it instantly.*'
-    )
-    .setColor('#00FFCC')
-    .setImage(PANEL_BANNER_URL)
-    .setFooter({ 
-      text: '💎 PrimeTools • Powered by PrimeGen AI',
-      iconURL: 'https://i.goopics.net/2eukvn.gif'
-    })
-    .setTimestamp();
 
-  const { StringSelectMenuBuilder } = require('discord.js');
-  const selectMenu = new StringSelectMenuBuilder()
-    .setCustomId('select_primetools')
-    .setPlaceholder('⚡ Select an exclusive V.I.P tool...')
-    .addOptions([
-      { label: 'Discord Token Checker', description: 'Get info from a Discord Token', emoji: '🤖', value: 'tool_discord_token' },
-      { label: 'Discord Account Age', description: 'Check creation date from a User ID', emoji: '📅', value: 'tool_discord_age' },
-      { label: 'Avatar & Banner Stealer', description: 'Download avatar and banner from User ID', emoji: '🖼️', value: 'tool_discord_avatar' },
-      { label: 'Nitro Promo Gen', description: 'Generate a Discord Nitro Promo link', emoji: '🎁', value: 'tool_nitro' },
-      { label: 'Temp Mail', description: 'Generate a disposable email', emoji: '📧', value: 'tool_tempmail' },
-      { label: 'Secure Pass', description: 'Generate a strong password', emoji: '🔐', value: 'tool_passgen' },
-      { label: 'Fake CC', description: 'Generate a test credit card', emoji: '💳', value: 'tool_fakecc' },
-      { label: 'Proxy Scraper', description: 'Fetch live HTTP proxies', emoji: '🕸️', value: 'tool_proxy' },
-      { label: 'Generation History', description: 'View your 5 last generated accounts', emoji: '📜', value: 'tool_history' }
-    ]);
 
-  const row = new ActionRowBuilder().addComponents(selectMenu);
-
-  return { embeds: [embed], components: [row] };
-}
-
-module.exports = { command, execute, buildBasicPanels, buildPrimePanel, buildPrimeStockPanel, buildStockPanel, buildFAQPanel, buildShopPanel, buildVipPricePanel, buildPrimeToolsPanel };
+module.exports = { command, execute, buildBasicPanels, buildPrimePanel, buildPrimeStockPanel, buildStockPanel, buildFAQPanel, buildShopPanel, buildVipPricePanel };
