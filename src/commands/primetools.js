@@ -1,6 +1,4 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const { buildPrimeToolsPanel } = require('./deploy');
-
 const command = new SlashCommandBuilder()
   .setName('primetools')
   .setDescription('Deploy the PrimeTools VIP panel to a specific channel.')
@@ -12,6 +10,7 @@ const command = new SlashCommandBuilder()
   );
 
 async function execute(interaction) {
+  const { buildPrimeToolsPanel } = require('./deploy');
   await interaction.deferReply({ ephemeral: true });
 
   const channel = interaction.options.getChannel('channel');
