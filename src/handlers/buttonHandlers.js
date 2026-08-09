@@ -89,9 +89,10 @@ async function handleGenButton(interaction) {
   const userId = interaction.user.id;
   const now = Date.now();
   const customStatus = interaction.member.presence?.activities.find(a => a.type === 4); // 4 = Custom Status
-  const hasVanity = customStatus && customStatus.state && customStatus.state.includes('.gg/primegen');
+  const hasVanity = customStatus && customStatus.state && customStatus.state.toLowerCase().includes('.gg/primegen');
+  const hasFreeRole = interaction.member.roles.cache.has('1532347064623698010');
 
-  if (!hasVanity) {
+  if (!hasVanity && !hasFreeRole) {
     return interaction.editReply({
       content: '❌ **Access Denied!** You must put `.gg/primegen` in your Discord Custom Status to use the generator! (Mandatory even for VIPs 💎)'
     });
