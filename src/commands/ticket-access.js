@@ -18,7 +18,7 @@ async function execute(interaction) {
   const helperRole = interaction.guild.roles.cache.get(helperRoleId);
 
   if (!modRole && !helperRole) {
-    return interaction.editReply('❌ Les rôles Modérateur et Helper sont introuvables sur ce serveur.');
+    return interaction.editReply('❌ The Moderator and Helper roles were not found on this server.');
   }
 
   // Find all ticket and order channels
@@ -27,7 +27,7 @@ async function execute(interaction) {
   );
 
   if (ticketChannels.size === 0) {
-    return interaction.editReply('ℹ️ Aucun ticket existant trouvé.');
+    return interaction.editReply('ℹ️ No existing tickets found.');
   }
 
   let updatedCount = 0;
@@ -57,10 +57,10 @@ async function execute(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('✅ Permissions des Tickets Mises à Jour')
-    .setDescription(`Les modérateurs et helpers ont maintenant accès aux tickets existants.\n\n` +
-      `**Tickets mis à jour :** \`${updatedCount}\`\n` +
-      `**Échecs :** \`${failedCount}\``)
+    .setTitle('✅ Ticket Permissions Updated')
+    .setDescription(`Moderators and helpers now have access to existing tickets.\n\n` +
+      `**Updated Tickets:** \`${updatedCount}\`\n` +
+      `**Failures:** \`${failedCount}\``)
     .setColor(COLORS.SUCCESS)
     .setTimestamp();
 

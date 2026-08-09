@@ -93,21 +93,21 @@ async function handleGenButton(interaction) {
 
   if (!hasVanity) {
     return interaction.editReply({
-      content: '❌ **Accès Refusé !** Tu dois mettre `.gg/primegen` dans ton statut personnalisé Discord pour utiliser le générateur ! (Obligatoire même pour les VIP 💎)'
+      content: '❌ **Access Denied!** You must put `.gg/primegen` in your Discord Custom Status to use the generator! (Mandatory even for VIPs 💎)'
     });
   }
 
   // Check Premium role if tier is premium
   if (tier === 'premium' && !interaction.member.roles.cache.has('1532346926425444474')) {
     return interaction.editReply({
-      content: '🖕 Va te faire foutre, t\'as pas le rôle Premium ! Achète-le sur le shop avant de cliquer ici.'
+      content: '❌ **Access Denied!** You do not have the Premium role! Please purchase it on the shop before generating.'
     });
   }
 
   // Check Free role if tier is free
   if (tier === 'free' && !interaction.member.roles.cache.has('1532347064623698010')) {
     return interaction.editReply({
-      content: '❌ Tu n\'as pas accès à ce panel ! Mets `.gg/primegen` dans ton statut pour obtenir le rôle Free.'
+      content: '❌ You don\'t have access to this panel! Put `.gg/primegen` in your status to get the Free role.'
     });
   }
 
