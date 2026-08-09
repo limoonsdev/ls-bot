@@ -97,10 +97,10 @@ async function handleGenButton(interaction) {
     });
   }
 
-  // Check Premium role if tier is premium
-  if (tier === 'premium' && !interaction.member.roles.cache.has('1532346926425444474')) {
+  // Check VIP/Premium role if tier is premium or prime
+  if ((tier === 'premium' || tier === 'prime') && !interaction.member.roles.cache.has('1532346926425444474')) {
     return interaction.editReply({
-      content: '❌ **Access Denied!** You do not have the Premium role! Please purchase it on the shop before generating.'
+      content: '❌ **Access Denied!** You do not have the VIP/Premium role! Please purchase it on the shop before generating on this panel.'
     });
   }
 
