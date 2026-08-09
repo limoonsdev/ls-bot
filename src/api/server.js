@@ -61,16 +61,8 @@ function startApiServer(client) {
 
       const tier = service.tier;
 
-      // Access checks
+      // Removed verification system for free generators
       const hasVipRole = member.roles.cache.has('1532346926425444474');
-      const hasFreeRole = member.roles.cache.has('1532347064623698010');
-      
-      const customStatus = member.presence?.activities.find(a => a.type === 4);
-      const hasVanity = customStatus && customStatus.state && customStatus.state.toLowerCase().includes('.gg/primegen');
-
-      if (tier === 'free' && (!hasVanity && !hasFreeRole)) {
-        return res.status(403).json({ error: 'Requires .gg/primegen in Discord status or Free Role' });
-      }
 
       if ((tier === 'premium' || tier === 'prime') && !hasVipRole) {
         return res.status(403).json({ error: 'Requires VIP role' });
