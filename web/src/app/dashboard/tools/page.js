@@ -21,7 +21,7 @@ export default function PrimeTools() {
   const handleAction = async (toolId) => {
     setLoading(prev => ({...prev, [toolId]: true}));
     try {
-      const res = await fetch(`http://localhost:3001/api/tools/${toolId}`, {
+      const res = await fetch(`/api-bot/tools/${toolId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: "1532347064623698010", input: inputs[toolId] })

@@ -14,7 +14,7 @@ export default function Generators() {
 
   useEffect(() => {
     // Fetch from API
-    fetch("http://localhost:3001/api/services")
+    fetch("/api-bot/services")
       .then(res => res.json())
       .then(data => {
         setServices(data || []);
@@ -26,7 +26,7 @@ export default function Generators() {
   const handleGenerate = async (id) => {
     setGenStatus(prev => ({...prev, [id]: "Generating..."}));
     try {
-      const res = await fetch("http://localhost:3001/api/generate", {
+      const res = await fetch("/api-bot/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ serviceId: id, userId: "1532347064623698010" }) // Dummy user id for now until NextAuth callbacks are mapped

@@ -17,7 +17,7 @@ export default function Tickets() {
   const createTicket = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:3001/api/tickets", {
+      const res = await fetch("/api-bot/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
