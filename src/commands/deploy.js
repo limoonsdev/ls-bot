@@ -32,7 +32,8 @@ const command = new SlashCommandBuilder()
         { name: '📦 Stock Panel', value: 'stock' },
         { name: '❓ FAQ Panel', value: 'faq' },
         { name: '🛒 Shop Panel', value: 'shop' },
-        { name: '👑 VIP Price Panel', value: 'vip_price' }
+        { name: '👑 VIP Price Panel', value: 'vip_price' },
+        { name: '🛠️ PrimeTools Panel (VIP)', value: 'primetools' }
       ))
   .addChannelOption(option =>
     option.setName('channel')
@@ -94,6 +95,10 @@ async function execute(interaction) {
     }
     case 'vip_price': {
       panelsToDeploy.push(await buildVipPricePanel(interaction.guild));
+      break;
+    }
+    case 'primetools': {
+      panelsToDeploy.push(await buildPrimeToolsPanel(interaction.guild));
       break;
     }
     }
@@ -759,4 +764,52 @@ async function buildVipPricePanel(guild) {
   return { embeds: [embed], components: [row] };
 }
 
-module.exports = { command, execute, buildBasicPanels, buildPrimePanel, buildPrimeStockPanel, buildStockPanel, buildFAQPanel, buildShopPanel, buildVipPricePanel };
+/**
+ * Build PrimeTools Panel
+ */
+async function buildPrimeToolsPanel(guild) {
+  const embed = new EmbedBuilder()
+    .setTitle('🛠️ PrimeTools - VIP Exclusive')
+    .setDescription(
+      '**Welcome to the PrimeTools Hub!**\n\n' +
+      'Here you can access all the exclusive utilities reserved for our V.I.P members.\n\n' +
+      '> 📧 **Temp Mail:** Generate a temporary email instantly to secure accounts.\n' +
+      '> 🔐 **Pass Gen:** Create a highly secure, unbreakable password.\n' +
+      '> 📜 **Gen History:** View the last accounts you generated.\n' +
+      '> 🔑 **2FA Code:** Get an authenticator code using a 2FA secret.\n\n' +
+      '*These tools are strictly reserved for users with a V.I.P role.*'
+    )
+    .setColor('#FF00FF')
+    .setImage(PANEL_BANNER_URL)
+    .setFooter({ 
+      text: '🛠️ PrimeTools • Ultimate VIP Arsenal',
+      iconURL: 'https://i.goopics.net/2eukvn.gif'
+    })
+    .setTimestamp();
+
+  const btnTempMail = new ButtonBuilder()
+    .setCustomId('tool_tempmail')
+    .setLabel('📧 Temp Mail')
+    .setStyle(ButtonStyle.Primary);
+
+  const btnPassGen = new ButtonBuilder()
+    .setCustomId('tool_passgen')
+    .setLabel('🔐 Secure Pass')
+    .setStyle(ButtonStyle.Success);
+    
+  const btnHistory = new ButtonBuilder()
+    .setCustomId('tool_history')
+    .setLabel('📜 My Gens')
+    .setStyle(ButtonStyle.Secondary);
+
+  const btn2fa = new ButtonBuilder()
+    .setCustomId('tool_2fa')
+    .setLabel('🔑 2FA Auth')
+    .setStyle(ButtonStyle.Danger);
+
+  const row = new ActionRowBuilder().addComponents(btnTempMail, btnPassGen, btnHistory, btn2fa);
+
+  return { embeds: [embed], components: [row] };
+}
+
+module.exports = { command, execute, buildBasicPanels, buildPrimePanel, buildPrimeStockPanel, buildStockPanel, buildFAQPanel, buildShopPanel, buildVipPricePanel, buildPrimeToolsPanel };
