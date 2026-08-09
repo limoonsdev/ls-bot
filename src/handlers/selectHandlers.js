@@ -167,6 +167,14 @@ function registerSelectHandlers(client) {
           {
             id: interaction.user.id,
             allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory']
+          },
+          {
+            id: '1532347198975639582', // Mod role
+            allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory']
+          },
+          {
+            id: '1532347155254087720', // Helper role
+            allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory']
           }
         ]
       });
