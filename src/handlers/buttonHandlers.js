@@ -244,6 +244,10 @@ async function handleGenButton(interaction) {
       // 2. Ping user in proof/avis channel and auto-delete ping after 10s
       await pingUserInProofChannel(interaction.guild, interaction.user, service);
     }
+    
+    // Save to user_history
+    const { addUserHistory } = require('../database/models');
+    await addUserHistory(interaction.user.id, serviceId, 'GENERATION', { combo: account.combo, tier });
 
   } catch (dmError) {
     logger.error('Gen', 'Could not send DM', { error: dmError.message });
@@ -877,19 +881,91 @@ async function handlePrimeTools(interaction) {
 
   try {
     if (customId === 'tool_tempmail') {
-      await interaction.deferReply({ ephemeral: true });
-      const axios = require('axios');
-      // 1secmail API
-      const res = await axios.get('https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1');
-      const email = res.data[0];
+      // 1secmail without API call to avoid 403 on VPS
+      const randomString = Math.random().toString(36).substring(2, 12);
+      const email = `${randomString}@1secmail.com`;
       
       const embed = new EmbedBuilder()
         .setTitle('📧 Temp Mail Generator')
-        .setDescription(`Here is your temporary email address:\n\n\`${email}\`\n\n*Note: To read emails, you would go to 1secmail.com.*`)
+        .setDescription(`Here is your temporary email address:\n\n\`${email}\`\n\n*Click the button below to check your inbox directly in your browser.*`)
         .setColor(0x00FF00);
       
-      await interaction.editReply({ embeds: [embed] });
+      const inboxBtn = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('Check Inbox')
+          .setStyle(ButtonStyle.Link)
+          .setURL(`https://www.1secmail.com/mailbox/?email=${email}`)
+      );
+        
+      await interaction.reply({ embeds: [embed], components: [inboxBtn], ephemeral: true });
       
+    } else if (customId === 'tool_fakecc') {
+      // Basic Fake CC Gen algorithm for testing
+      const prefixes = ["4539", "4556", "4916", "4532", "4929", "40240071", "4485", "4716", "4"];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      let cc = prefix;
+      while (cc.length < 15) { cc += Math.floor(Math.random() * 10); }
+      // Luhn algorithm calculation
+      let sum = 0;
+      let toggle = true;
+      for (let i = cc.length - 1; i >= 0; i--) {
+        let n = parseInt(cc.charAt(i), 10);
+        if (toggle) {
+          n *= 2;
+          if (n > 9) n -= 9;
+        }
+        sum += n;
+        toggle = !toggle;
+      }
+      cc += (sum * 9) % 10; // Check digit
+
+      const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
+      const year = String(Math.floor(Math.random() * 5) + 26); // 2026-2030
+      const cvv = String(Math.floor(Math.random() * 900) + 100);
+
+      await interaction.reply({
+        content: `💳 **Fake Credit Card Generated:**\n\`\`\`\nNumber: ${cc}\nExp: ${month}/${year}\nCVV: ${cvv}\n\`\`\`\n*Note: This is algorithmic fake data for testing purposes only.*`,
+        ephemeral: true
+      });
+
+    } else if (customId === 'tool_identity') {
+      const names = ["Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Sam", "Jamie"];
+      const lastNames = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller"];
+      const cities = ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "London", "Paris", "Berlin"];
+      
+      const name = `${names[Math.floor(Math.random() * names.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
+      const dob = `${Math.floor(Math.random() * 28) + 1}/${Math.floor(Math.random() * 12) + 1}/${Math.floor(Math.random() * 30) + 1970}`;
+      const city = cities[Math.floor(Math.random() * cities.length)];
+      const phone = `+1 (${Math.floor(Math.random() * 800) + 200}) ${Math.floor(Math.random() * 800) + 200}-${Math.floor(Math.random() * 8999) + 1000}`;
+
+      await interaction.reply({
+        content: `👤 **Random Identity Generated:**\n\`\`\`\nName: ${name}\nDOB: ${dob}\nLocation: ${city}\nPhone: ${phone}\n\`\`\``,
+        ephemeral: true
+      });
+
+    } else if (customId === 'tool_uuid') {
+      const uuid = require('crypto').randomUUID();
+      await interaction.reply({
+        content: `🏷️ **Fresh UUID v4:**\n\`\`\`\n${uuid}\n\`\`\``,
+        ephemeral: true
+      });
+
+    } else if (customId === 'tool_proxy') {
+      await interaction.deferReply({ ephemeral: true });
+      try {
+        const axios = require('axios');
+        // Fetch from a free proxy API
+        const res = await axios.get('https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt');
+        const proxies = res.data.split('\n').filter(p => p.trim().length > 5);
+        const randomProxies = [];
+        for(let i=0; i<3; i++) {
+          randomProxies.push(proxies[Math.floor(Math.random() * proxies.length)]);
+        }
+        await interaction.editReply(`🌐 **Here are 3 Random HTTP Proxies:**\n\`\`\`\n${randomProxies.join('\n')}\n\`\`\``);
+      } catch (err) {
+        await interaction.editReply('❌ Failed to fetch proxies at this time.');
+      }
+
     } else if (customId === 'tool_passgen') {
       const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
       let password = "";
@@ -905,8 +981,9 @@ async function handlePrimeTools(interaction) {
     } else if (customId === 'tool_history') {
       await interaction.deferReply({ ephemeral: true });
       const userId = interaction.user.id;
+      const { query } = require('../database/hybridPool');
       const result = await query(
-        'SELECT service_id, combo_data, created_at FROM generated_accounts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5',
+        "SELECT service_id, details->>'combo' as combo_data, created_at FROM user_history WHERE user_id = $1 AND action = 'GENERATION' ORDER BY created_at DESC LIMIT 5",
         [userId]
       );
       

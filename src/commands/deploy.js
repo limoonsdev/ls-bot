@@ -773,10 +773,14 @@ async function buildPrimeToolsPanel(guild) {
     .setDescription(
       '**Welcome to the PrimeTools Hub!**\n\n' +
       'Here you can access all the exclusive utilities reserved for our V.I.P members.\n\n' +
-      '> 📧 **Temp Mail:** Generate a temporary email instantly to secure accounts.\n' +
+      '> 📧 **Temp Mail:** Generate a temporary email instantly.\n' +
       '> 🔐 **Pass Gen:** Create a highly secure, unbreakable password.\n' +
       '> 📜 **Gen History:** View the last accounts you generated.\n' +
-      '> 🔑 **2FA Code:** Get an authenticator code using a 2FA secret.\n\n' +
+      '> 🔑 **2FA Code:** Get an authenticator code using a 2FA secret.\n' +
+      '> 💳 **Fake CC:** Generate fake credit card numbers for testing.\n' +
+      '> 👤 **Fake ID:** Generate a random fake identity.\n' +
+      '> 🏷️ **UUID Gen:** Generate a fresh UUID v4.\n' +
+      '> 🌐 **Proxy:** Grab a random high-quality HTTP proxy.\n\n' +
       '*These tools are strictly reserved for users with a V.I.P role.*'
     )
     .setColor('#FF00FF')
@@ -787,29 +791,20 @@ async function buildPrimeToolsPanel(guild) {
     })
     .setTimestamp();
 
-  const btnTempMail = new ButtonBuilder()
-    .setCustomId('tool_tempmail')
-    .setLabel('📧 Temp Mail')
-    .setStyle(ButtonStyle.Primary);
+  const btnTempMail = new ButtonBuilder().setCustomId('tool_tempmail').setLabel('📧 Temp Mail').setStyle(ButtonStyle.Primary);
+  const btnPassGen = new ButtonBuilder().setCustomId('tool_passgen').setLabel('🔐 Secure Pass').setStyle(ButtonStyle.Success);
+  const btnHistory = new ButtonBuilder().setCustomId('tool_history').setLabel('📜 My Gens').setStyle(ButtonStyle.Secondary);
+  const btn2fa = new ButtonBuilder().setCustomId('tool_2fa').setLabel('🔑 2FA Auth').setStyle(ButtonStyle.Danger);
+  const btnFakeCC = new ButtonBuilder().setCustomId('tool_fakecc').setLabel('💳 CC Gen').setStyle(ButtonStyle.Primary);
+  
+  const btnIdentity = new ButtonBuilder().setCustomId('tool_identity').setLabel('👤 Fake ID').setStyle(ButtonStyle.Success);
+  const btnUUID = new ButtonBuilder().setCustomId('tool_uuid').setLabel('🏷️ UUID Gen').setStyle(ButtonStyle.Secondary);
+  const btnProxy = new ButtonBuilder().setCustomId('tool_proxy').setLabel('🌐 Get Proxy').setStyle(ButtonStyle.Primary);
 
-  const btnPassGen = new ButtonBuilder()
-    .setCustomId('tool_passgen')
-    .setLabel('🔐 Secure Pass')
-    .setStyle(ButtonStyle.Success);
-    
-  const btnHistory = new ButtonBuilder()
-    .setCustomId('tool_history')
-    .setLabel('📜 My Gens')
-    .setStyle(ButtonStyle.Secondary);
+  const row1 = new ActionRowBuilder().addComponents(btnTempMail, btnPassGen, btnHistory, btn2fa, btnFakeCC);
+  const row2 = new ActionRowBuilder().addComponents(btnIdentity, btnUUID, btnProxy);
 
-  const btn2fa = new ButtonBuilder()
-    .setCustomId('tool_2fa')
-    .setLabel('🔑 2FA Auth')
-    .setStyle(ButtonStyle.Danger);
-
-  const row = new ActionRowBuilder().addComponents(btnTempMail, btnPassGen, btnHistory, btn2fa);
-
-  return { embeds: [embed], components: [row] };
+  return { embeds: [embed], components: [row1, row2] };
 }
 
 module.exports = { command, execute, buildBasicPanels, buildPrimePanel, buildPrimeStockPanel, buildStockPanel, buildFAQPanel, buildShopPanel, buildVipPricePanel, buildPrimeToolsPanel };
