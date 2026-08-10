@@ -132,6 +132,12 @@ function startApiServer(client, port) {
   // =====================================================
 
   app.post('/api/generate', async (req, res) => {
+    // ── SECURITY: Require API Key ──
+    const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
+    if (apiKey !== (process.env.API_KEY || 'PRIMEGEN_MASTER_SECRET_2026')) {
+      return res.status(403).json({ error: 'Unauthorized: Invalid API Key' });
+    }
+
     const { userId, serviceId } = req.body || {};
     if (!userId || !serviceId) {
       return res.status(400).json({ error: 'Missing userId or serviceId' });
@@ -180,11 +186,6 @@ function startApiServer(client, port) {
         return res.status(403).json({ error: 'Requires VIP role' });
       }
 
-      // Stock check
-      const stockResult = await query('SELECT COUNT(*) as count FROM combos WHERE service_id = $1', [serviceId]);
-      const stock = parseInt(stockResult.rows[0]?.count || 0);
-      if (stock === 0) return res.status(400).json({ error: 'Out of stock' });
-
       // Retrieve account
       const comboResult = await query(
         'SELECT id, combo FROM combos WHERE service_id = $1 ORDER BY id ASC LIMIT 1',
@@ -199,6 +200,7 @@ function startApiServer(client, port) {
       // ── UPDATE RATE LIMIT after successful generation ──
       userRL.lastGen = now;
       userRL.count += 1;
+      genRateLimit.set(userId, userRL);
 
       // Save history
       await addUserHistory(userId, serviceId, 'GENERATION', {
@@ -651,6 +653,40 @@ function startApiServer(client, port) {
       res.status(500).json({ error: err.message });
     }
   });
+
+  // Get Shop Items
+  app.get('/api/shop', async (req, res) => {
+    try {
+      const { getOrCreateGuildConfig } = require('../database/models');
+      const config = await getOrCreateGuildConfig(MAIN_GUILD_ID);
+      const defaultShop = [
+        { id: "premium", name: "Premium", price: "4.99", features: ["Générateur Premium", "Support Prioritaire", "Accès outils VIP"], style: "premium" },
+        { id: "prime", name: "Prime", price: "9.99", features: ["Tout Premium", "Générateur Prime", "Pas de cooldown"], style: "prime", badge: "Best Seller" },
+        { id: "nitro_boost", name: "Nitro Boost (1 Mois)", price: "3.50", features: ["2 Boosts inclus", "Badge profil", "Emojis personnalisés"], style: "prime" },
+        { id: "server_boost", name: "Server Boost (14x)", price: "8.00", features: ["Niveau 3 débloqué", "Vanity URL", "Qualité audio max"], style: "premium" }
+      ];
+      const shopItems = config.config_data?.shop_items || defaultShop;
+      res.json(shopItems);
+    } catch(err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Update Shop Items (Admin)
+  app.post('/api/admin/shop', async (req, res) => {
+    const { shopItems } = req.body || {};
+    try {
+      const { updateGuildConfig } = require('../database/models');
+      await updateGuildConfig(MAIN_GUILD_ID, { shop_items: shopItems });
+      res.json({ success: true, shopItems });
+    } catch(err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // =====================================================
+  // ERROR HANDLING
+  // =====================================================
 
   // =====================================================
   // ERROR HANDLING
