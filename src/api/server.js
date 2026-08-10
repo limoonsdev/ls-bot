@@ -7,9 +7,9 @@ const { addUserHistory, getUserHistory, getOrCreateUser, updateUserStats } = req
 
 const logger = getLogger();
 
-function startApiServer(client) {
+function startApiServer(client, port) {
   const app = express();
-  const PORT = process.env.API_PORT || 3001;
+  const PORT = port || process.env.API_PORT || 3001;
   const MAIN_GUILD_ID = '1532343959722917979';
 
   app.use(cors({
