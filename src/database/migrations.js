@@ -92,11 +92,32 @@ async function createUserHistoryTable() {
       id SERIAL PRIMARY KEY,
       user_id VARCHAR(20) NOT NULL,
       service_id VARCHAR(50) NOT NULL,
-      action VARCHAR(50) NOT NULL,
+      action VARCHAR(50) NOT NULL DEFAULT 'GENERATION',
       details JSONB,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  try {
+    await query("ALTER TABLE user_history ADD COLUMN action VARCHAR(50) DEFAULT 'GENERATION'");
+  } catch (e) {
+    // Column may already exist
+  }
+
+  try {
+    await query("ALTER TABLE user_history ADD COLUMN details JSONB");
+  } catch (e) {
+    // Column may already exist
+  }
+
+  // Handle legacy columns that might have NOT NULL constraints
+  try {
+    await query("ALTER TABLE user_history ALTER COLUMN combo DROP NOT NULL");
+  } catch (e) {}
+
+  try {
+    await query("ALTER TABLE user_history ALTER COLUMN tier DROP NOT NULL");
+  } catch (e) {}
 }
 
 /**

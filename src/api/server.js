@@ -125,7 +125,7 @@ function startApiServer(client, port) {
   // =====================================================
 
   app.post('/api/generate', async (req, res) => {
-    const { userId, serviceId } = req.body;
+    const { userId, serviceId } = req.body || {};
     if (!userId || !serviceId) {
       return res.status(400).json({ error: 'Missing userId or serviceId' });
     }
@@ -152,7 +152,7 @@ function startApiServer(client, port) {
 
       // Retrieve account
       const comboResult = await query(
-        'SELECT id, combo, account_info FROM combos WHERE service_id = $1 ORDER BY id ASC LIMIT 1',
+        'SELECT id, combo FROM combos WHERE service_id = $1 ORDER BY id ASC LIMIT 1',
         [serviceId]
       );
 
@@ -166,7 +166,7 @@ function startApiServer(client, port) {
         combo: account.combo,
         tier,
         serviceLabel: service.label,
-        accountInfo: account.account_info || null
+        accountInfo: null
       });
 
       // Update user stats
@@ -187,7 +187,7 @@ function startApiServer(client, port) {
         success: true,
         service: service.label,
         combo: account.combo,
-        accountInfo: account.account_info
+        accountInfo: null
       });
 
     } catch (err) {
@@ -296,7 +296,7 @@ function startApiServer(client, port) {
 
   app.post('/api/tools/:id', async (req, res) => {
     const { id } = req.params;
-    const { userId, input } = req.body;
+    const { userId, input } = req.body || {};
 
     try {
       const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
@@ -333,7 +333,7 @@ function startApiServer(client, port) {
 
   // Create ticket
   app.post('/api/tickets', async (req, res) => {
-    const { userId, username, subject, message, category } = req.body;
+    const { userId, username, subject, message, category } = req.body || {};
     if (!userId || !subject || !message) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -453,7 +453,7 @@ function startApiServer(client, port) {
   // Reply to ticket from web
   app.post('/api/tickets/:channelId/reply', async (req, res) => {
     const { channelId } = req.params;
-    const { userId, username, message } = req.body;
+    const { userId, username, message } = req.body || {};
 
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
@@ -496,6 +496,55 @@ function startApiServer(client, port) {
     } catch (err) {
       logger.error('API', `Ticket close error: ${err.message}`);
       res.status(500).json({ error: 'Failed to close ticket' });
+    }
+  });
+
+  // =====================================================
+  // MAINTENANCE & ADMIN
+  // =====================================================
+
+  app.get('/api/admin/maintenance', async (req, res) => {
+    try {
+      const { getOrCreateGuildConfig } = require('../database/models');
+      const config = await getOrCreateGuildConfig(MAIN_GUILD_ID);
+      const maintenance = config.config_data?.maintenance || false;
+      const maintenanceMsg = config.config_data?.maintenanceMsg || 'Le site est actuellement en maintenance pour une mise à jour globale. Revenez plus tard.';
+      res.json({ maintenance, message: maintenanceMsg });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/admin/maintenance', async (req, res) => {
+    const { maintenance, message } = req.body || {};
+    try {
+      const { updateGuildConfig } = require('../database/models');
+      await updateGuildConfig(MAIN_GUILD_ID, { maintenance, maintenanceMsg: message });
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get('/api/admin/staff', async (req, res) => {
+    try {
+      const { getOrCreateGuildConfig } = require('../database/models');
+      const config = await getOrCreateGuildConfig(MAIN_GUILD_ID);
+      const staffIds = config.config_data?.staff_ids || ["1178305844698435625"];
+      res.json(staffIds);
+    } catch(err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/admin/staff', async (req, res) => {
+    const { staffIds } = req.body || {};
+    try {
+      const { updateGuildConfig } = require('../database/models');
+      await updateGuildConfig(MAIN_GUILD_ID, { staff_ids: staffIds });
+      res.json({ success: true, staffIds });
+    } catch(err) {
+      res.status(500).json({ error: err.message });
     }
   });
 
