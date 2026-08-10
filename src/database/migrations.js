@@ -28,6 +28,7 @@ async function runMigrations() {
     await createInviteTrackerTables();
     await createOrdersTable();
     await createVerifiedUsersTable();
+    await createTicketsTable();
 
     // Create indexes
     await createIndexes();
@@ -319,8 +320,31 @@ module.exports = {
   createAuditLogsTable,
   createInviteTrackerTables,
   createIndexes,
-  createVerifiedUsersTable
+  createVerifiedUsersTable,
+  createTicketsTable
 };
+
+/**
+ * Create tickets table for web ticketing system
+ */
+async function createTicketsTable() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS tickets (
+      id SERIAL PRIMARY KEY,
+      user_id VARCHAR(20) NOT NULL,
+      channel_id VARCHAR(20) NOT NULL UNIQUE,
+      subject VARCHAR(255) NOT NULL,
+      category VARCHAR(50) DEFAULT 'General',
+      status VARCHAR(20) DEFAULT 'open',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      closed_at TIMESTAMP
+    )
+  `);
+
+  try {
+    await query('ALTER TABLE tickets ADD COLUMN category VARCHAR(50) DEFAULT \'General\'');
+  } catch (e) { /* column may already exist */ }
+}
 
 /**
  * Create verified users table

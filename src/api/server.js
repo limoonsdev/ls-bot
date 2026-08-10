@@ -3,8 +3,7 @@ const cors = require('cors');
 const { getLogger } = require('../utils/logger');
 const { getAllServices, getServiceById } = require('../config/services');
 const { query } = require('../database/hybridPool');
-const { getOrCreateGuildConfig } = require('../database/models');
-const { buildEnglishGenEmbed } = require('../services/panelManager');
+const { addUserHistory, getUserHistory, getOrCreateUser, updateUserStats } = require('../database/models');
 
 const logger = getLogger();
 
@@ -14,39 +13,93 @@ function startApiServer(client) {
   const MAIN_GUILD_ID = '1532343959722917979';
 
   app.use(cors({
-    origin: '*', // You can restrict this to your Vercel URL later
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
   }));
   app.use(express.json());
 
-  // Middleware to attach discord client
+  // Middleware: attach discord client + request logging
   app.use((req, res, next) => {
     req.client = client;
+    logger.info('API', `${req.method} ${req.path}`);
     next();
   });
 
-  // Health check
+  // =====================================================
+  // HEALTH & STATS
+  // =====================================================
+
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', bot: req.client.user?.tag });
+    res.json({ status: 'ok', bot: req.client.user?.tag, uptime: process.uptime() });
   });
 
+  // Global stats for landing page
+  app.get('/api/stats', async (req, res) => {
+    try {
+      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID).catch(() => null);
+      const memberCount = guild?.memberCount || 0;
+
+      const services = getAllServices();
+
+      const genResult = await query('SELECT COUNT(*) as count FROM user_history WHERE action = $1', ['GENERATION']).catch(() => ({ rows: [{ count: 0 }] }));
+      const totalGenerated = parseInt(genResult.rows[0]?.count || 0);
+
+      res.json({
+        users: memberCount.toLocaleString(),
+        services: services.length.toString(),
+        generated: totalGenerated.toLocaleString()
+      });
+    } catch (err) {
+      logger.error('API', `Stats error: ${err.message}`);
+      res.json({ users: '2,400+', services: '40', generated: '50,000+' });
+    }
+  });
+
+  // =====================================================
+  // AUTH
+  // =====================================================
+
   const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '111111111111111111';
-  // Note: the redirect URI will be handled by the Vercel frontend, this is a fallback if needed
   const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'http://localhost:3000/callback';
 
-  // OAuth2 Login Redirect (Fallback)
   app.get('/api/auth/login', (req, res) => {
     const authUrl = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&scope=identify`;
     res.redirect(authUrl);
   });
 
-  // Get all services/generators
+  // =====================================================
+  // SERVICES & STOCK
+  // =====================================================
+
   app.get('/api/services', (req, res) => {
     res.json(getAllServices());
   });
 
-  // Get specific user info (roles, etc.)
+  // Services with real-time stock count
+  app.get('/api/services/stock', async (req, res) => {
+    try {
+      const services = getAllServices();
+      const stockPromises = services.map(async (service) => {
+        const result = await query('SELECT COUNT(*) as count FROM combos WHERE service_id = $1', [service.id]).catch(() => ({ rows: [{ count: 0 }] }));
+        return {
+          ...service,
+          stock: parseInt(result.rows[0]?.count || 0)
+        };
+      });
+
+      const servicesWithStock = await Promise.all(stockPromises);
+      res.json(servicesWithStock);
+    } catch (err) {
+      logger.error('API', `Services stock error: ${err.message}`);
+      res.status(500).json({ error: 'Failed to fetch stock' });
+    }
+  });
+
+  // =====================================================
+  // USER
+  // =====================================================
+
   app.get('/api/user/:id', async (req, res) => {
     try {
       const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
@@ -54,16 +107,28 @@ function startApiServer(client) {
       if (!member) return res.status(404).json({ error: 'User not found in main guild' });
 
       const roles = member.roles.cache.map(r => r.id);
-      res.json({ id: member.id, tag: member.user.tag, roles });
+      res.json({
+        id: member.id,
+        tag: member.user.tag,
+        username: member.user.username,
+        avatar: member.user.displayAvatarURL({ size: 64 }),
+        roles
+      });
     } catch (err) {
+      logger.error('API', `User fetch error: ${err.message}`);
       res.status(500).json({ error: err.message });
     }
   });
 
-  // Execute a generator
+  // =====================================================
+  // GENERATE
+  // =====================================================
+
   app.post('/api/generate', async (req, res) => {
     const { userId, serviceId } = req.body;
-    if (!userId || !serviceId) return res.status(400).json({ error: 'Missing parameters' });
+    if (!userId || !serviceId) {
+      return res.status(400).json({ error: 'Missing userId or serviceId' });
+    }
 
     try {
       const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
@@ -74,8 +139,6 @@ function startApiServer(client) {
       if (!service) return res.status(404).json({ error: 'Service not found' });
 
       const tier = service.tier;
-
-      // Removed verification system for free generators
       const hasVipRole = member.roles.cache.has('1532346926425444474');
 
       if ((tier === 'premium' || tier === 'prime') && !hasVipRole) {
@@ -84,7 +147,7 @@ function startApiServer(client) {
 
       // Stock check
       const stockResult = await query('SELECT COUNT(*) as count FROM combos WHERE service_id = $1', [serviceId]);
-      const stock = stockResult.rows[0]?.count || 0;
+      const stock = parseInt(stockResult.rows[0]?.count || 0);
       if (stock === 0) return res.status(400).json({ error: 'Out of stock' });
 
       // Retrieve account
@@ -99,12 +162,26 @@ function startApiServer(client) {
       await query('DELETE FROM combos WHERE id = $1', [account.id]);
 
       // Save history
-      const { addUserHistory } = require('../database/models');
-      await addUserHistory(userId, serviceId, 'GENERATION', { combo: account.combo, tier });
+      await addUserHistory(userId, serviceId, 'GENERATION', {
+        combo: account.combo,
+        tier,
+        serviceLabel: service.label,
+        accountInfo: account.account_info || null
+      });
+
+      // Update user stats
+      await getOrCreateUser(userId, member.user.username);
+      await updateUserStats(userId, 0, 1);
 
       // Log in discord
-      const { sendGenLog } = require('../utils/discordLogger');
-      await sendGenLog(guild, member.user, service, account.combo, tier);
+      try {
+        const { sendGenLog } = require('../utils/discordLogger');
+        await sendGenLog(guild, member.user, service, account.combo, tier);
+      } catch (logErr) {
+        logger.warn('API', `Discord log failed (non-critical): ${logErr.message}`);
+      }
+
+      logger.info('API', `Generation success: ${member.user.tag} -> ${service.label}`);
 
       res.json({
         success: true,
@@ -119,13 +196,108 @@ function startApiServer(client) {
     }
   });
 
-  // Tools API
+  // =====================================================
+  // LEADERBOARD
+  // =====================================================
+
+  app.get('/api/leaderboard', async (req, res) => {
+    try {
+      const result = await query(
+        `SELECT user_id, username, total_combos_generated, last_activity
+         FROM users
+         WHERE total_combos_generated > 0
+         ORDER BY total_combos_generated DESC
+         LIMIT 50`
+      );
+
+      // Enrich with Discord avatars
+      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID).catch(() => null);
+      const enriched = await Promise.all(
+        result.rows.map(async (row) => {
+          let avatar = null;
+          let displayName = row.username || 'Unknown';
+          if (guild) {
+            try {
+              const member = await guild.members.fetch(row.user_id);
+              avatar = member.user.displayAvatarURL({ size: 64 });
+              displayName = member.user.username;
+            } catch (e) { /* user may have left */ }
+          }
+          return {
+            userId: row.user_id,
+            username: displayName,
+            avatar,
+            generations: parseInt(row.total_combos_generated),
+            lastActive: row.last_activity
+          };
+        })
+      );
+
+      res.json(enriched);
+    } catch (err) {
+      logger.error('API', `Leaderboard error: ${err.message}`);
+      res.status(500).json({ error: 'Failed to fetch leaderboard' });
+    }
+  });
+
+  // =====================================================
+  // HISTORY
+  // =====================================================
+
+  app.get('/api/history/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const limit = parseInt(req.query.limit) || 100;
+      const serviceFilter = req.query.service || null;
+      const tierFilter = req.query.tier || null;
+
+      let sql = `SELECT * FROM user_history WHERE user_id = $1 AND action = 'GENERATION'`;
+      const params = [userId];
+      let paramIdx = 2;
+
+      if (serviceFilter) {
+        sql += ` AND service_id = $${paramIdx}`;
+        params.push(serviceFilter);
+        paramIdx++;
+      }
+
+      sql += ` ORDER BY created_at DESC LIMIT $${paramIdx}`;
+      params.push(limit);
+
+      const result = await query(sql, params);
+
+      // Parse details and optionally filter by tier
+      let history = result.rows.map(row => {
+        const details = typeof row.details === 'string' ? JSON.parse(row.details) : (row.details || {});
+        return {
+          id: row.id,
+          serviceId: row.service_id,
+          serviceLabel: details.serviceLabel || row.service_id,
+          tier: details.tier || 'free',
+          combo: details.combo || '***',
+          date: row.created_at,
+        };
+      });
+
+      if (tierFilter) {
+        history = history.filter(h => h.tier === tierFilter);
+      }
+
+      res.json(history);
+    } catch (err) {
+      logger.error('API', `History error: ${err.message}`);
+      res.status(500).json({ error: 'Failed to fetch history' });
+    }
+  });
+
+  // =====================================================
+  // TOOLS
+  // =====================================================
+
   app.post('/api/tools/:id', async (req, res) => {
     const { id } = req.params;
     const { userId, input } = req.body;
 
-    // We assume the user has access since next-auth & frontend should gate it, 
-    // but a robust backend checks VIP status again:
     try {
       const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
       const member = await guild.members.fetch(userId).catch(() => null);
@@ -147,34 +319,193 @@ function startApiServer(client) {
         const email = `${Math.random().toString(36).substring(2, 12)}@1secmail.com`;
         return res.json({ result: email, link: `https://www.1secmail.com/mailbox/?email=${email}` });
       }
-      
+
       return res.status(400).json({ error: 'Unknown tool' });
     } catch(err) {
+      logger.error('API', `Tool error: ${err.message}`);
       res.status(500).json({ error: err.message });
     }
   });
 
-  // Create Ticket via Web
+  // =====================================================
+  // TICKETS
+  // =====================================================
+
+  // Create ticket
   app.post('/api/tickets', async (req, res) => {
-    const { userId, username, subject, message } = req.body;
+    const { userId, username, subject, message, category } = req.body;
+    if (!userId || !subject || !message) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
     try {
       const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
-      
-      const category = guild.channels.cache.find(c => c.name === 'Tickets' && c.type === 4);
+
+      const category_channel = guild.channels.cache.find(c => c.name === 'Tickets' && c.type === 4);
       const ticketChannel = await guild.channels.create({
-        name: `web-ticket-${username}`,
+        name: `web-${username || 'user'}-${Date.now().toString(36)}`,
         type: 0,
-        parent: category?.id
+        parent: category_channel?.id,
+        topic: `Web Ticket | User: ${username} (${userId}) | Category: ${category || 'General'}`
       });
 
       await ticketChannel.send({
-        content: `**New Web Ticket** from ${username} (${userId})\n**Subject:** ${subject}\n**Message:** ${message}`
+        content: `**🎫 New Web Ticket**\n**From:** ${username} (${userId})\n**Category:** ${category || 'General'}\n**Subject:** ${subject}\n\n**Message:**\n${message}\n\n_Reply in this channel to respond to the user on the web dashboard._`
       });
 
+      // Save ticket to DB
+      try {
+        await query(
+          `INSERT INTO tickets (user_id, channel_id, subject, category, status) VALUES ($1, $2, $3, $4, 'open')`,
+          [userId, ticketChannel.id, subject, category || 'General']
+        );
+      } catch (dbErr) {
+        logger.warn('API', `Ticket DB save failed (non-critical): ${dbErr.message}`);
+      }
+
+      logger.info('API', `Ticket created: ${ticketChannel.name} by ${username}`);
       res.json({ success: true, channelId: ticketChannel.id });
     } catch(err) {
-      res.status(500).json({ error: err.message });
+      logger.error('API', `Ticket creation error: ${err.message}`);
+      res.status(500).json({ error: 'Failed to create ticket' });
     }
+  });
+
+  // List user tickets
+  app.get('/api/tickets/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      const result = await query(
+        `SELECT * FROM tickets WHERE user_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      );
+
+      // Enrich with last message from Discord
+      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID).catch(() => null);
+      const tickets = await Promise.all(
+        result.rows.map(async (ticket) => {
+          let lastMessage = null;
+          if (guild) {
+            try {
+              const channel = await guild.channels.fetch(ticket.channel_id);
+              const messages = await channel.messages.fetch({ limit: 1 });
+              const msg = messages.first();
+              if (msg) {
+                lastMessage = {
+                  content: msg.content.substring(0, 100),
+                  author: msg.author.username,
+                  timestamp: msg.createdAt
+                };
+              }
+            } catch (e) { /* channel may be deleted */ }
+          }
+          return {
+            id: ticket.id,
+            channelId: ticket.channel_id,
+            subject: ticket.subject,
+            category: ticket.category || 'General',
+            status: ticket.status,
+            createdAt: ticket.created_at,
+            closedAt: ticket.closed_at,
+            lastMessage
+          };
+        })
+      );
+
+      res.json(tickets);
+    } catch (err) {
+      logger.error('API', `Tickets list error: ${err.message}`);
+      res.status(500).json({ error: 'Failed to fetch tickets' });
+    }
+  });
+
+  // Get ticket messages (read Discord channel messages)
+  app.get('/api/tickets/:userId/:channelId', async (req, res) => {
+    try {
+      const { channelId } = req.params;
+      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
+      const channel = await guild.channels.fetch(channelId);
+
+      if (!channel) return res.status(404).json({ error: 'Ticket channel not found' });
+
+      const messages = await channel.messages.fetch({ limit: 50 });
+      const formatted = messages
+        .sort((a, b) => a.createdTimestamp - b.createdTimestamp)
+        .map(msg => ({
+          id: msg.id,
+          content: msg.content,
+          author: msg.author.username,
+          authorId: msg.author.id,
+          isBot: msg.author.bot,
+          isStaff: !msg.content.startsWith('[WEB]') && !msg.author.bot,
+          avatar: msg.author.displayAvatarURL({ size: 32 }),
+          timestamp: msg.createdAt
+        }));
+
+      res.json(formatted);
+    } catch (err) {
+      logger.error('API', `Ticket messages error: ${err.message}`);
+      res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+  });
+
+  // Reply to ticket from web
+  app.post('/api/tickets/:channelId/reply', async (req, res) => {
+    const { channelId } = req.params;
+    const { userId, username, message } = req.body;
+
+    if (!message) return res.status(400).json({ error: 'Message is required' });
+
+    try {
+      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
+      const channel = await guild.channels.fetch(channelId);
+
+      if (!channel) return res.status(404).json({ error: 'Ticket channel not found' });
+
+      await channel.send({
+        content: `[WEB] **${username || 'User'}:** ${message}`
+      });
+
+      logger.info('API', `Web reply sent to ticket ${channelId} by ${username}`);
+      res.json({ success: true });
+    } catch (err) {
+      logger.error('API', `Ticket reply error: ${err.message}`);
+      res.status(500).json({ error: 'Failed to send reply' });
+    }
+  });
+
+  // Close ticket
+  app.post('/api/tickets/:channelId/close', async (req, res) => {
+    const { channelId } = req.params;
+
+    try {
+      await query(
+        `UPDATE tickets SET status = 'closed', closed_at = CURRENT_TIMESTAMP WHERE channel_id = $1`,
+        [channelId]
+      );
+
+      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
+      const channel = await guild.channels.fetch(channelId).catch(() => null);
+      if (channel) {
+        await channel.send({ content: '🔒 **This ticket has been closed from the web dashboard.**' });
+      }
+
+      logger.info('API', `Ticket ${channelId} closed`);
+      res.json({ success: true });
+    } catch (err) {
+      logger.error('API', `Ticket close error: ${err.message}`);
+      res.status(500).json({ error: 'Failed to close ticket' });
+    }
+  });
+
+  // =====================================================
+  // ERROR HANDLING
+  // =====================================================
+
+  app.use((err, req, res, next) => {
+    logger.error('API', `Unhandled error: ${err.message}`, { stack: err.stack });
+    res.status(500).json({ error: 'Internal server error' });
   });
 
   app.listen(PORT, () => {
