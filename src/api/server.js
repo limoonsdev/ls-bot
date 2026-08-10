@@ -587,6 +587,71 @@ function startApiServer(client, port) {
     }
   });
 
+  // Restock a service (add combos)
+  app.post('/api/admin/restock', async (req, res) => {
+    const { serviceId, combos } = req.body || {};
+    if (!serviceId || !combos) {
+      return res.status(400).json({ error: 'Missing serviceId or combos' });
+    }
+
+    try {
+      // Split combos text by newlines, filter empty lines
+      const lines = combos.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length === 0) {
+        return res.status(400).json({ error: 'No valid combos provided' });
+      }
+
+      let added = 0;
+      let skipped = 0;
+
+      // Batch insert with ON CONFLICT DO NOTHING to avoid duplicates
+      for (const combo of lines) {
+        try {
+          const email = combo.split(':')[0] || '';
+          await query(
+            'INSERT INTO combos (service_id, combo, email) VALUES ($1, $2, $3) ON CONFLICT (combo) DO NOTHING',
+            [serviceId, combo, email]
+          );
+          added++;
+        } catch (e) {
+          // If ON CONFLICT isn't set up, try without it
+          try {
+            const email = combo.split(':')[0] || '';
+            await query(
+              'INSERT INTO combos (service_id, combo, email) VALUES ($1, $2, $3)',
+              [serviceId, combo, email]
+            );
+            added++;
+          } catch (e2) {
+            skipped++;
+          }
+        }
+      }
+
+      logger.info('API', `Restock: ${added} combos added to ${serviceId} (${skipped} skipped)`);
+      res.json({ success: true, added, skipped, total: lines.length });
+    } catch (err) {
+      logger.error('API', `Restock error: ${err.message}`);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Clear all stock for a service
+  app.post('/api/admin/clear-stock', async (req, res) => {
+    const { serviceId } = req.body || {};
+    if (!serviceId) return res.status(400).json({ error: 'Missing serviceId' });
+
+    try {
+      const result = await query('DELETE FROM combos WHERE service_id = $1', [serviceId]);
+      const deleted = result.rowCount || 0;
+      logger.info('API', `Cleared stock for ${serviceId}: ${deleted} combos removed`);
+      res.json({ success: true, deleted });
+    } catch (err) {
+      logger.error('API', `Clear stock error: ${err.message}`);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // =====================================================
   // ERROR HANDLING
   // =====================================================
