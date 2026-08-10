@@ -12,6 +12,11 @@ function startApiServer(client, port) {
   const PORT = port || process.env.API_PORT || 3001;
   const MAIN_GUILD_ID = '1532343959722917979';
 
+  // Rate limit map for /api/generate: userId -> { lastGen: timestamp, count: number, resetAt: timestamp }
+  const genRateLimit = new Map();
+  const GEN_COOLDOWN_MS = 30000; // 30 seconds between generations per user
+  const GEN_MAX_PER_HOUR = 15;   // Max 15 generations per hour per user
+
   app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -19,10 +24,12 @@ function startApiServer(client, port) {
   }));
   app.use(express.json());
 
-  // Middleware: attach discord client + request logging
+  // Middleware: attach discord client + request logging (only POST/PUT/DELETE to reduce spam)
   app.use((req, res, next) => {
     req.client = client;
-    logger.info('API', `${req.method} ${req.path}`);
+    if (req.method !== 'GET') {
+      logger.info('API', `${req.method} ${req.path}`);
+    }
     next();
   });
 
@@ -121,13 +128,41 @@ function startApiServer(client, port) {
   });
 
   // =====================================================
-  // GENERATE
+  // GENERATE (with rate limiting)
   // =====================================================
 
   app.post('/api/generate', async (req, res) => {
     const { userId, serviceId } = req.body || {};
     if (!userId || !serviceId) {
       return res.status(400).json({ error: 'Missing userId or serviceId' });
+    }
+
+    // ── RATE LIMIT CHECK ──
+    const now = Date.now();
+    let userRL = genRateLimit.get(userId);
+    if (!userRL) {
+      userRL = { lastGen: 0, count: 0, resetAt: now + 3600000 };
+      genRateLimit.set(userId, userRL);
+    }
+
+    // Reset hourly counter
+    if (now > userRL.resetAt) {
+      userRL.count = 0;
+      userRL.resetAt = now + 3600000;
+    }
+
+    // Check cooldown (30s between each gen)
+    const timeSinceLast = now - userRL.lastGen;
+    if (timeSinceLast < GEN_COOLDOWN_MS) {
+      const waitSec = Math.ceil((GEN_COOLDOWN_MS - timeSinceLast) / 1000);
+      logger.warn('API', `Rate limited ${userId} - cooldown (${waitSec}s remaining)`);
+      return res.status(429).json({ error: `Cooldown: please wait ${waitSec} seconds` });
+    }
+
+    // Check hourly limit
+    if (userRL.count >= GEN_MAX_PER_HOUR) {
+      logger.warn('API', `Rate limited ${userId} - hourly limit reached (${GEN_MAX_PER_HOUR})`);
+      return res.status(429).json({ error: `Hourly limit reached (${GEN_MAX_PER_HOUR} per hour). Try again later.` });
     }
 
     try {
@@ -161,6 +196,10 @@ function startApiServer(client, port) {
 
       await query('DELETE FROM combos WHERE id = $1', [account.id]);
 
+      // ── UPDATE RATE LIMIT after successful generation ──
+      userRL.lastGen = now;
+      userRL.count += 1;
+
       // Save history
       await addUserHistory(userId, serviceId, 'GENERATION', {
         combo: account.combo,
@@ -181,7 +220,7 @@ function startApiServer(client, port) {
         logger.warn('API', `Discord log failed (non-critical): ${logErr.message}`);
       }
 
-      logger.info('API', `Generation success: ${member.user.tag} -> ${service.label}`);
+      logger.info('API', `Generation success: ${member.user.tag} -> ${service.label} (${userRL.count}/${GEN_MAX_PER_HOUR} this hour)`);
 
       res.json({
         success: true,
