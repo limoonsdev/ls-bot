@@ -151,11 +151,16 @@ function registerPanel(messageIdInput, channelId, guildId, type, client) {
 
       logger.debug('PanelManager', `Updated ${type} panel group`, { groupId });
     } catch (error) {
-      logger.error('PanelManager', `Failed to update panel group ${groupId}`, { error: error.message });
+      if (error.code === 10003 || error.code === 50001 || error.code === 10011) { // Unknown Channel, Missing Access, Unknown Role/Missing Permissions etc
+        logger.warn('PanelManager', `Cannot access channel/guild, unregistering panel group ${groupId}`);
+        unregisterPanel(groupId);
+      } else {
+        logger.error('PanelManager', `Failed to update panel group ${groupId}`, { error: error.message });
+      }
     } finally {
       panelData.isUpdating = false;
     }
-  }, 5000); // 5 seconds
+  }, 10000); // 10 seconds to reduce rate limits
 
   logger.info('PanelManager', `Registered ${type} panel group for auto-update`, { groupId });
 }

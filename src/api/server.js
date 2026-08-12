@@ -177,12 +177,21 @@ function startApiServer(client, port) {
       if (!member) return res.status(403).json({ error: 'User must be in the Discord server' });
 
       const service = getServiceById(serviceId);
-      if (!service) return res.status(404).json({ error: 'Service not found' });
+      if (!service) return res.status(400).json({ error: 'Invalid service' });
+
+      // Check roles
+      const hasFree = member.roles.cache.has('1532347064623698010');
+      const hasPremium = member.roles.cache.has('1532346926425444474');
+      const customStatus = member.presence?.activities?.find(a => a.type === 4);
+      const hasVanity = customStatus && customStatus.state && customStatus.state.toLowerCase().includes('.gg/primegen');
+
+      if (!hasVanity && !hasFree && !hasPremium) {
+        return res.status(403).json({ error: 'Access Denied: Missing role or .gg/primegen in status' });
+      }
 
       const tier = service.tier;
-      const hasVipRole = member.roles.cache.has('1532346926425444474');
 
-      if ((tier === 'premium' || tier === 'prime') && !hasVipRole) {
+      if ((tier === 'premium' || tier === 'prime') && !hasPremium) {
         return res.status(403).json({ error: 'Requires VIP role' });
       }
 
@@ -286,6 +295,12 @@ function startApiServer(client, port) {
   // =====================================================
 
   app.get('/api/history/:userId', async (req, res) => {
+    // ── SECURITY: Require API Key ──
+    const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
+    if (apiKey !== (process.env.API_KEY || 'PRIMEGEN_MASTER_SECRET_2026')) {
+      return res.status(403).json({ error: 'Unauthorized: Invalid API Key' });
+    }
+
     try {
       const { userId } = req.params;
       const limit = parseInt(req.query.limit) || 100;
@@ -374,6 +389,12 @@ function startApiServer(client, port) {
 
   // Create ticket
   app.post('/api/tickets', async (req, res) => {
+    // ── SECURITY: Require API Key ──
+    const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
+    if (apiKey !== (process.env.API_KEY || 'PRIMEGEN_MASTER_SECRET_2026')) {
+      return res.status(403).json({ error: 'Unauthorized: Invalid API Key' });
+    }
+
     const { userId, username, subject, message, category } = req.body || {};
     if (!userId || !subject || !message) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -414,6 +435,12 @@ function startApiServer(client, port) {
 
   // List user tickets
   app.get('/api/tickets/:userId', async (req, res) => {
+    // ── SECURITY: Require API Key ──
+    const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
+    if (apiKey !== (process.env.API_KEY || 'PRIMEGEN_MASTER_SECRET_2026')) {
+      return res.status(403).json({ error: 'Unauthorized: Invalid API Key' });
+    }
+
     try {
       const { userId } = req.params;
 
@@ -463,6 +490,12 @@ function startApiServer(client, port) {
 
   // Get ticket messages (read Discord channel messages)
   app.get('/api/tickets/:userId/:channelId', async (req, res) => {
+    // ── SECURITY: Require API Key ──
+    const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
+    if (apiKey !== (process.env.API_KEY || 'PRIMEGEN_MASTER_SECRET_2026')) {
+      return res.status(403).json({ error: 'Unauthorized: Invalid API Key' });
+    }
+
     try {
       const { channelId } = req.params;
       const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
@@ -638,6 +671,16 @@ function startApiServer(client, port) {
     }
   });
 
+  // Reset Leaderboard
+  app.post('/api/admin/reset-leaderboard', async (req, res) => {
+    try {
+      await query('UPDATE users SET total_combos_generated = 0');
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Clear all stock for a service
   app.post('/api/admin/clear-stock', async (req, res) => {
     const { serviceId } = req.body || {};
@@ -660,12 +703,20 @@ function startApiServer(client, port) {
       const { getOrCreateGuildConfig } = require('../database/models');
       const config = await getOrCreateGuildConfig(MAIN_GUILD_ID);
       const defaultShop = [
-        { id: "premium", name: "Premium", price: "4.99", features: ["Générateur Premium", "Support Prioritaire", "Accès outils VIP"], style: "premium" },
-        { id: "prime", name: "Prime", price: "9.99", features: ["Tout Premium", "Générateur Prime", "Pas de cooldown"], style: "prime", badge: "Best Seller" },
-        { id: "nitro_boost", name: "Nitro Boost (1 Mois)", price: "3.50", features: ["2 Boosts inclus", "Badge profil", "Emojis personnalisés"], style: "prime" },
-        { id: "server_boost", name: "Server Boost (14x)", price: "8.00", features: ["Niveau 3 débloqué", "Vanity URL", "Qualité audio max"], style: "premium" }
+        { id: "premium", name: "Premium (Abonnement)", price: "4.99", features: ["Générateur Premium", "Support Prioritaire", "Accès outils VIP"], style: "premium" },
+        { id: "prime", name: "Prime (Abonnement)", price: "9.99", features: ["Tout Premium", "Générateur Prime", "Pas de cooldown"], style: "prime", badge: "Best Seller" },
+        { id: "nitro_1m", name: "Nitro 1 Month (Gift Link)", price: "3.00", features: ["Lien Cadeau", "Pas de carte requise", "Livraison Rapide"], style: "premium" },
+        { id: "val_nfa_eu", name: "Val NFA EU (Ranked Ready 20+)", price: "2.00", features: ["NFA", "EU", "Niveau 20+", "Ranked Ready"], style: "prime" },
+        { id: "val_nfa_na", name: "Val NFA NA (Ranked Ready 20+)", price: "2.00", features: ["NFA", "NA", "Niveau 20+", "Ranked Ready"], style: "prime" },
+        { id: "val_nfa_eu_70", name: "Val NFA EU (70-120 Skins)", price: "7.00", features: ["NFA", "EU", "Niveau 20+", "70-120 Skins"], style: "premium" },
+        { id: "val_nfa_eu_150", name: "Val NFA EU (150+ Skins)", price: "12.00", features: ["NFA", "EU", "Niveau 20+", "150+ Skins"], style: "premium" },
+        { id: "val_fa_eu", name: "Val FA EU (Ranked Ready 25+)", price: "13.50", features: ["Full Access", "EU", "Niveau 25+", "Ranked Ready"], style: "prime" },
+        { id: "val_fa_na", name: "Val FA NA (Ranked Ready 17+)", price: "8.00", features: ["Full Access", "NA", "Niveau 17+", "Ranked Ready"], style: "prime" },
+        { id: "val_fa_eu_10", name: "Val FA EU (10 Skins)", price: "20.00", features: ["Full Access", "EU", "Niveau 35+", "10 Skins"], style: "premium" }
       ];
-      const shopItems = config.config_data?.shop_items || defaultShop;
+      // Force default shop if empty
+      let shopItems = config.config_data?.shop_items;
+      if (!shopItems || shopItems.length === 0) shopItems = defaultShop;
       res.json(shopItems);
     } catch(err) {
       res.status(500).json({ error: err.message });
