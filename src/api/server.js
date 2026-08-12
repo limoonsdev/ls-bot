@@ -266,12 +266,12 @@ function startApiServer(client, port) {
         result.rows.map(async (row) => {
           let avatar = null;
           let displayName = row.username || 'Unknown';
-          if (guild) {
+          if (req.client) {
             try {
-              const member = await guild.members.fetch(row.user_id);
-              avatar = member.user.displayAvatarURL({ size: 64 });
-              displayName = member.user.username;
-            } catch (e) { /* user may have left */ }
+              const user = await req.client.users.fetch(row.user_id);
+              avatar = user.displayAvatarURL({ size: 64 });
+              displayName = user.username;
+            } catch (e) { /* user may not exist */ }
           }
           return {
             userId: row.user_id,
