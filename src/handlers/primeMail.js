@@ -38,11 +38,11 @@ async function handlePrimeMailGenerate(interaction) {
     await query('INSERT INTO prime_mails (user_id, email) VALUES ($1, $2)', [interaction.user.id, emailAddress]);
 
     const embed = new EmbedBuilder()
-      .setTitle('✉️ PrimeMail Generated')
+      .setTitle('PrimeMail Generated')
       .setDescription(
         `Here is your temporary email address:\n\n` +
         `**\`${emailAddress}\`**\n\n` +
-        `*Click the button below to check your inbox for OTPs or verification links.*`
+        `Click the button below to check your inbox for OTPs or verification links.`
       )
       .setColor(COLORS.SUCCESS)
       .setFooter({ text: 'PrimeMail by PrimeGen.eu' })
@@ -51,7 +51,7 @@ async function handlePrimeMailGenerate(interaction) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`primemail_check_${emailAddress}`)
-        .setLabel('📥 Check Inbox')
+        .setLabel('Check Inbox')
         .setStyle(ButtonStyle.Primary)
     );
 
@@ -77,7 +77,7 @@ async function handlePrimeMailCheck(interaction) {
 
     if (!messages || messages.length === 0) {
       return interaction.editReply({
-        content: `📭 **Inbox is empty for \`${emailAddress}\`**\n*Please wait a few seconds and try again.*`
+        content: `**Inbox is empty for \`${emailAddress}\`**\nWait a few seconds and try again.`
       });
     }
 
@@ -91,7 +91,7 @@ async function handlePrimeMailCheck(interaction) {
     const cleanBody = bodyText.substring(0, 1000); // Discord embed limit is 4096, but we keep it shorter
 
     const embed = new EmbedBuilder()
-      .setTitle(`📥 New Message Received`)
+      .setTitle(`New Message Received`)
       .addFields(
         { name: 'From', value: msgDetails.from || 'Unknown', inline: true },
         { name: 'Subject', value: msgDetails.subject || 'No Subject', inline: true },
@@ -106,7 +106,7 @@ async function handlePrimeMailCheck(interaction) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`primemail_check_${emailAddress}`)
-        .setLabel('🔄 Refresh Inbox')
+        .setLabel('Refresh Inbox')
         .setStyle(ButtonStyle.Secondary)
     );
 

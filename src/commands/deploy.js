@@ -186,12 +186,10 @@ async function buildBasicPanels(guild) {
     const chunk = availableServices.slice(i, i + 25);
     
     const embed = new EmbedBuilder()
-      .setTitle(`⚡ PRIMEGEN.EU | FREE GENERATORS${titleSuffix}`)
+      .setTitle(`PrimeGen - Free Services${titleSuffix}`)
       .setDescription(
-        'Welcome to **PrimeGen Free**.\n\n' +
-        '• **Stock:** Synced in real-time with `primegen.eu`\n' +
-        '• **Support:** `.gg/primegen`\n\n' +
-        'Select a service below to generate an account.'
+        'Use the buttons below to generate a free account.\n\n' +
+        'Free accounts may stop working quickly. For guaranteed access, consider upgrading.'
       )
       .setColor(COLORS.FREE)
       .setFooter({ 
@@ -251,12 +249,10 @@ function buildVerificationPanel() {
   const OAUTH2_URL = 'https://primegen.eu/api/auth/signin/discord';
 
   const embed = new EmbedBuilder()
-    .setTitle('⚡ PRIMEGEN.EU | VERIFICATION')
+    .setTitle('PrimeGen - Verification')
     .setDescription(
-      'Welcome to **PrimeGen**.\n\n' +
-      'Please verify your Discord account to gain full access to the server and our services.\n\n' +
-      '• Click the **Verify Me** button to link your account.\n' +
-      '• Powered by `primegen.eu`'
+      'Verify your Discord account to gain full access to the server and our services.\n\n' +
+      'Click the button below to link your account.'
     )
     .setColor(COLORS.SUCCESS)
     .setImage(PANEL_BANNER_URL)
@@ -286,11 +282,10 @@ function buildVerificationPanel() {
  */
 function buildTicketPanel() {
   const embed = new EmbedBuilder()
-    .setTitle('⚡ PRIMEGEN.EU | SUPPORT')
+    .setTitle('PrimeGen - Support')
     .setDescription(
-      'Welcome to **PrimeGen Support**.\n\n' +
-      'If you have any issues with purchases, generators, or have a general inquiry, click the button below to open a ticket.\n\n' +
-      'Our team will assist you shortly.'
+      'Need help with an order, a replacement, or have a question?\n\n' +
+      'Open a ticket below and our team will assist you.'
     )
     .setColor(COLORS.INFO)
     .setImage(PANEL_BANNER_URL)
@@ -355,7 +350,7 @@ async function buildStockPanel(guild) {
   }
   
   const embed = new EmbedBuilder()
-    .setTitle('⚡ PRIMEGEN.EU | LIVE STOCK')
+    .setTitle('PrimeGen - Live Stock')
     .setDescription(description)
     .setColor(COLORS.SUCCESS)
     .setImage(PANEL_BANNER_URL)
@@ -541,13 +536,10 @@ async function buildPrimePanel(guild) {
     const titleSuffix = i > 0 ? ` (Part ${Math.floor(i/25) + 1})` : '';
 
     const embed = new EmbedBuilder()
-      .setTitle(`⚡ PRIMEGEN.EU | PRIME EXCLUSIVE${titleSuffix}`)
+      .setTitle(`PrimeGen - Prime Exclusive${titleSuffix}`)
       .setDescription(
-        'Welcome to **PrimeGen Prime**.\n\n' +
-        '• **High Quality:** Guaranteed working HQ/MQ accounts\n' +
-        '• **No Queue:** Instant delivery via DMs\n' +
-        '• **Support:** Priority assistance via `.gg/primegen`\n\n' +
-        'Select a Prime service below to generate.'
+        'Welcome to the Prime tier.\n\n' +
+        'Guaranteed high-quality accounts and no queues. Select a service below.'
       )
       .setColor('#FFD700') // Gold color for Prime
       .setFooter({ 
@@ -739,12 +731,10 @@ async function buildPremiumPanel(guild) {
     const chunk = availableServices.slice(i, i + 25);
     
     const embed = new EmbedBuilder()
-      .setTitle(`⚡ PRIMEGEN.EU | PREMIUM GENERATORS${titleSuffix}`)
+      .setTitle(`PrimeGen - Premium Services${titleSuffix}`)
       .setDescription(
-        'Welcome to **PrimeGen Premium**.\n\n' +
-        '• **Stock:** Synced in real-time with `primegen.eu`\n' +
-        '• **Support:** `.gg/primegen`\n\n' +
-        'Select a Premium service below to generate an account.'
+        'Welcome to the Premium tier.\n\n' +
+        'Select a service below to generate an account.'
       )
       .setColor(COLORS.PREMIUM)
       .setFooter({ 
@@ -822,13 +812,10 @@ async function buildTargxtPanel(guild) {
   const panels = [];
   
   const embed = new EmbedBuilder()
-    .setTitle(`🤝 PRIMEGEN x TARGXT`)
+    .setTitle(`PrimeGen x Targxt`)
     .setDescription(
-      'Welcome to the **Targxt Collab** generator.\n\n' +
-      '• **Requirement:** `.gg/targxt` in your Custom Status\n' +
-      '• **Stock:** Shared with PrimeGen\n' +
-      '• **Support:** `.gg/targxt`\n\n' +
-      'Select a service below to generate.'
+      'Welcome to the Targxt exclusive generator.\n\n' +
+      'Make sure you have `.gg/targxt` in your Discord status to use these services.'
     )
     .setColor('#FF4500') // Targxt color? Orange/Red
     .setFooter({ 
@@ -873,13 +860,10 @@ async function buildTargxtPanel(guild) {
  */
 function buildPrimeMailPanel() {
   const embed = new EmbedBuilder()
-    .setTitle('✉️ PRIMEGEN.EU | PRIMEMAIL')
+    .setTitle('PrimeMail - Temp Inbox')
     .setDescription(
-      'Welcome to **PrimeMail** Temp Mail service.\n\n' +
-      '• **Generate:** Get a disposable email address instantly.\n' +
-      '• **Receive OTPs:** Read incoming verification codes right here.\n' +
-      '• **Secure:** Emails are temporary and automatically deleted.\n\n' +
-      'Click below to create your temporary inbox.'
+      'Need an email for verification?\n\n' +
+      'Generate a temporary email address to receive OTPs and bypass verifications easily. Your inbox is private and disposable.'
     )
     .setColor(COLORS.INFO)
     .setImage(PANEL_BANNER_URL)
@@ -892,7 +876,7 @@ function buildPrimeMailPanel() {
   const buttonRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('primemail_generate')
-      .setLabel('✉️ Generate Temp Mail')
+      .setLabel('Generate Temp Mail')
       .setStyle(ButtonStyle.Primary)
   );
 
