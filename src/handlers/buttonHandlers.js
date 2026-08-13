@@ -55,6 +55,12 @@ async function handleButton(interaction) {
     } else if (customId.startsWith('config_')) {
       const configHandler = require('../commands/config');
       await configHandler.handleConfigButton(interaction);
+    } else if (customId === 'primemail_generate') {
+      const primeMail = require('./primeMail');
+      await primeMail.handlePrimeMailGenerate(interaction);
+    } else if (customId.startsWith('primemail_check_')) {
+      const primeMail = require('./primeMail');
+      await primeMail.handlePrimeMailCheck(interaction);
     } else if (customId === 'prime_stock_upload') {
       await handlePrimeStockUpload(interaction);
     } else if (customId === 'prime_stock_refresh') {

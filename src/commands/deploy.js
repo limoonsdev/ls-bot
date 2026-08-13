@@ -27,6 +27,7 @@ const command = new SlashCommandBuilder()
         { name: '🌟 Premium Generators Panel', value: 'gen_premium' },
         { name: '💎 Prime Generators Panel', value: 'gen_prime' },
         { name: '🤝 Targxt Collab Panel', value: 'collab_targxt' },
+        { name: '✉️ PrimeMail (Temp OTP)', value: 'primemail' },
         { name: '✅ Verification Panel (Web Callback)', value: 'verification' },
         { name: '🎫 Ticket & Support Panel', value: 'ticket' },
         { name: '📊 Systems Status Panel', value: 'status' },
@@ -67,6 +68,10 @@ async function execute(interaction) {
     }
     case 'gen_prime': {
       panelsToDeploy = await buildPrimePanel(interaction.guild);
+      break;
+    }
+    case 'primemail': {
+      panelsToDeploy.push(buildPrimeMailPanel());
       break;
     }
     case 'verification': {
@@ -530,7 +535,19 @@ async function buildPrimePanel(guild) {
       .setTimestamp();
     return [{ embed, components: [] }];
   }
+  // Split services into chunks of 25 (Discord max components per message)
+  for (let i = 0; i < availableServices.length; i += 25) {
+    const chunk = availableServices.slice(i, i + 25);
+    const titleSuffix = i > 0 ? ` (Part ${Math.floor(i/25) + 1})` : '';
 
+    const embed = new EmbedBuilder()
+      .setTitle(`⚡ PRIMEGEN.EU | PRIME EXCLUSIVE${titleSuffix}`)
+      .setDescription(
+        'Welcome to **PrimeGen Prime**.\n\n' +
+        '• **High Quality:** Guaranteed working HQ/MQ accounts\n' +
+        '• **No Queue:** Instant delivery via DMs\n' +
+        '• **Support:** Priority assistance via `.gg/primegen`\n\n' +
+        'Select a Prime service below to generate.'
       )
       .setColor('#FFD700') // Gold color for Prime
       .setFooter({ 
@@ -851,4 +868,35 @@ async function buildTargxtPanel(guild) {
   return panels;
 }
 
-module.exports = { command, execute, buildBasicPanels, buildPremiumPanel, buildPrimePanel, buildTargxtPanel };
+/**
+ * Build PrimeMail (Temp OTP) Panel
+ */
+function buildPrimeMailPanel() {
+  const embed = new EmbedBuilder()
+    .setTitle('✉️ PRIMEGEN.EU | PRIMEMAIL')
+    .setDescription(
+      'Welcome to **PrimeMail** Temp Mail service.\n\n' +
+      '• **Generate:** Get a disposable email address instantly.\n' +
+      '• **Receive OTPs:** Read incoming verification codes right here.\n' +
+      '• **Secure:** Emails are temporary and automatically deleted.\n\n' +
+      'Click below to create your temporary inbox.'
+    )
+    .setColor(COLORS.INFO)
+    .setImage(PANEL_BANNER_URL)
+    .setFooter({ 
+      text: '⚡ PrimeGen.eu PrimeMail • OTP Service',
+      iconURL: 'https://i.goopics.net/2eukvn.gif'
+    })
+    .setTimestamp();
+
+  const buttonRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('primemail_generate')
+      .setLabel('✉️ Generate Temp Mail')
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  return { embed, components: [buttonRow] };
+}
+
+module.exports = { command, execute, buildBasicPanels, buildPremiumPanel, buildPrimePanel, buildTargxtPanel, buildPrimeMailPanel };
