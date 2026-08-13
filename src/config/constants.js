@@ -140,13 +140,13 @@ module.exports = CONSTANTS;
 const PANEL_BANNER_URL = 'https://i.goopics.net/2eukvn.gif';
 
 const COLORS = {
-  FREE: '#2B2D31',        // Dark grey
-  PREMIUM: '#FFD700',     // Gold  
-  SUCCESS: '#57F287',     // Green
-  ERROR: '#ED4245',       // Red
+  FREE: '#00f0ff',        // Cyan (Website Main)
+  PREMIUM: '#ff4785',     // Pink (Website Accent)  
+  SUCCESS: '#00f0ff',     // Cyan
+  ERROR: '#ff4785',       // Pink
   WARNING: '#FEE75C',     // Yellow
-  INFO: '#5865F2',        // Blurple
-  BOOST: '#F47FFF'        // Pink
+  INFO: '#00f0ff',        // Cyan
+  BOOST: '#ff4785'        // Pink
 };
 
 const EMOJIS = {

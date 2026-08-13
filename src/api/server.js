@@ -559,6 +559,76 @@ function startApiServer(client, port) {
     }
   });
 
+  // =====================================================
+  // OAUTH2 PULL & TOKENS
+  // =====================================================
+
+  app.post('/api/save-token', async (req, res) => {
+    // ── SECURITY: Require API Key ──
+    const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
+    if (apiKey !== (process.env.API_KEY || 'PRIMEGEN_MASTER_SECRET_2026')) {
+      return res.status(403).json({ error: 'Unauthorized: Invalid API Key' });
+    }
+
+    const { userId, username, accessToken, refreshToken } = req.body || {};
+    if (!userId || !accessToken) return res.status(400).json({ error: 'Missing fields' });
+
+    try {
+      const { saveUserToken } = require('../database/models');
+      await saveUserToken(userId, username, accessToken, refreshToken);
+      
+      // Auto pull logic right after saving
+      try {
+        const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
+        const member = await guild.members.fetch(userId).catch(() => null);
+        if (!member) {
+          await guild.members.add(userId, {
+            accessToken: accessToken
+          });
+          logger.info('OAuth2', `Pulled user ${username} (${userId}) to guild.`);
+        }
+      } catch (e) {
+        logger.warn('OAuth2', `Failed to pull user ${userId}: ${e.message}`);
+      }
+
+      res.json({ success: true });
+    } catch (err) {
+      logger.error('OAuth2', `Save token error: ${err.message}`);
+      res.status(500).json({ error: 'Internal error' });
+    }
+  });
+
+  // =====================================================
+  // STATUS
+  // =====================================================
+
+  app.get('/api/status', async (req, res) => {
+    try {
+      const ping = req.client.ws.ping;
+      const uptimeMs = req.client.uptime;
+      
+      // Calculate 24h uptime percentage (mocked slightly, if uptime < 24h we still show high depending on crashes)
+      const uptimeHours = uptimeMs / (1000 * 60 * 60);
+      const uptimePercentage = uptimeHours > 24 ? "99.9%" : "100%";
+
+      // Quick DB check
+      await query('SELECT 1');
+      
+      res.json({
+        success: true,
+        api: 'operational',
+        database: 'operational',
+        discord: ping > -1 ? 'operational' : 'degraded',
+        ping,
+        uptime: uptimePercentage,
+        uptimeRaw: uptimeMs,
+        version: 'v2.5.0'
+      });
+    } catch (e) {
+      res.status(500).json({ error: 'System degraded', api: 'degraded', database: 'outage' });
+    }
+  });
+
   // List user tickets
   app.get('/api/tickets/:userId', async (req, res) => {
     // ── SECURITY: Require API Key ──

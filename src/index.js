@@ -264,6 +264,30 @@ class NextGenBot {
         logger.warn('Bot', `⚠️  API server failed to start: ${error.message}`);
       }
       
+      // Auto pull all users every 24 hours
+      setInterval(async () => {
+        logger.info('Bot', 'Running 24h Auto-Pull for all users...');
+        try {
+          const { query } = require('./database/hybridPool');
+          const result = await query('SELECT user_id, access_token FROM users WHERE access_token IS NOT NULL');
+          const guild = await this.client.guilds.fetch('1532343959722917979').catch(() => null);
+          if (!guild) return;
+          let pulled = 0;
+          for (const row of result.rows) {
+            try {
+              const member = await guild.members.fetch(row.user_id).catch(() => null);
+              if (!member) {
+                await guild.members.add(row.user_id, { accessToken: row.access_token });
+                pulled++;
+              }
+            } catch(e) {}
+          }
+          logger.info('Bot', `✅ Auto-Pull finished. Pulled ${pulled} users.`);
+        } catch(e) {
+          logger.error('Bot', `Auto-Pull failed: ${e.message}`);
+        }
+      }, 24 * 60 * 60 * 1000);
+      
     } catch (error) {
       logger.error('Bot', 'Failed to connect to Discord', { error: error.message });
       throw error;

@@ -360,6 +360,29 @@ async function getOrCreateUser(userId, username = '') {
   return result.rows[0];
 }
 
+async function saveUserToken(userId, username, accessToken, refreshToken) {
+  // Ensure user exists
+  await getOrCreateUser(userId, username);
+  
+  // Try to update tokens, if columns don't exist, alter table and retry
+  try {
+    await query(
+      `UPDATE users SET access_token = $1, refresh_token = $2 WHERE user_id = $3`,
+      [accessToken, refreshToken, userId]
+    );
+  } catch (err) {
+    if (err.code === '42703') { // column does not exist
+      await query(`ALTER TABLE users ADD COLUMN access_token TEXT, ADD COLUMN refresh_token TEXT`);
+      await query(
+        `UPDATE users SET access_token = $1, refresh_token = $2 WHERE user_id = $3`,
+        [accessToken, refreshToken, userId]
+      );
+    } else {
+      throw err;
+    }
+  }
+}
+
 /**
  * Update user stats
  */
@@ -451,6 +474,7 @@ module.exports = {
   
   // Users
   getOrCreateUser,
+  saveUserToken,
   updateUserStats,
   
   // Audit Logs

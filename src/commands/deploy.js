@@ -16,23 +16,21 @@ const logger = getLogger();
 
 const command = new SlashCommandBuilder()
   .setName('deploy')
-  .setDescription('🚀 Deploy generation panels (Free & Premium)')
+  .setDescription('🚀 Deploy PrimeGen.eu panels')
   .setDefaultMemberPermissions('8') // Administrator permission
   .addStringOption(option =>
     option.setName('type')
       .setDescription('Type of panel to deploy')
       .setRequired(true)
       .addChoices(
-        { name: '💎 Basic Panel (Free & Premium)', value: 'basic_panel' },
-        { name: '💎 Prime Panel', value: 'gen_prime' },
-        { name: '📦 Prime Stock Panel', value: 'prime_stock' },
-        { name: '✅ Verification Panel', value: 'verification' },
-        { name: '🎫 Ticket Panel', value: 'ticket' },
-        { name: '📊 Status Panel', value: 'status' },
-        { name: '📦 Stock Panel', value: 'stock' },
-        { name: '❓ FAQ Panel', value: 'faq' },
-        { name: '🛒 Shop Panel', value: 'shop' },
-        { name: '👑 VIP Price Panel', value: 'vip_price' }
+        { name: '✨ Free Generators Panel', value: 'basic_panel' },
+        { name: '🌟 Premium Generators Panel', value: 'gen_premium' },
+        { name: '💎 Prime Generators Panel', value: 'gen_prime' },
+        { name: '🤝 Targxt Collab Panel', value: 'collab_targxt' },
+        { name: '✅ Verification Panel (Web Callback)', value: 'verification' },
+        { name: '🎫 Ticket & Support Panel', value: 'ticket' },
+        { name: '📊 Systems Status Panel', value: 'status' },
+        { name: '📦 Live Stock Panel', value: 'stock' }
       ))
   .addChannelOption(option =>
     option.setName('channel')
@@ -59,12 +57,16 @@ async function execute(interaction) {
       panelsToDeploy = await buildBasicPanels(interaction.guild);
       break;
     }
-    case 'gen_prime': {
-      panelsToDeploy = await buildPrimePanel(interaction.guild);
+    case 'gen_premium': {
+      panelsToDeploy = await buildPremiumPanel(interaction.guild);
       break;
     }
-    case 'prime_stock': {
-      panelsToDeploy.push(await buildPrimeStockPanel(interaction.guild));
+    case 'collab_targxt': {
+      panelsToDeploy = await buildTargxtPanel(interaction.guild);
+      break;
+    }
+    case 'gen_prime': {
+      panelsToDeploy = await buildPrimePanel(interaction.guild);
       break;
     }
     case 'verification': {
@@ -84,18 +86,6 @@ async function execute(interaction) {
       panelsToDeploy.push(await buildStockPanel(interaction.guild));
       break;
     }
-    case 'faq': {
-      panelsToDeploy.push(buildFAQPanel());
-      break;
-    }
-    case 'shop': {
-      panelsToDeploy.push(await buildShopPanel(interaction.guild));
-      break;
-    }
-    case 'vip_price': {
-      panelsToDeploy.push(await buildVipPricePanel(interaction.guild));
-      break;
-    }
     }
 
     const messageIds = [];
@@ -105,7 +95,7 @@ async function execute(interaction) {
     }
 
     // Register panels for auto-update
-    if (['status', 'stock', 'basic_panel', 'gen_prime', 'prime_stock'].includes(type) && messageIds.length > 0) {
+    if (['status', 'stock', 'basic_panel', 'gen_premium', 'gen_prime', 'collab_targxt'].includes(type) && messageIds.length > 0) {
       const { registerPanel } = require('../services/panelManager');
       const { getOrCreateGuildPanels, updateGuildPanels } = require('../database/models');
       // Pass the array of message IDs, identifying the group by the first ID
@@ -130,12 +120,12 @@ async function execute(interaction) {
       channel: channel.id,
       message: messageIds[0] || 'none',
       user: interaction.user.id,
-      autoUpdate: ['status', 'stock', 'basic_panel'].includes(type)
+      autoUpdate: ['status', 'stock', 'basic_panel', 'gen_premium', 'gen_prime', 'collab_targxt'].includes(type)
     });
 
     await interaction.editReply({
       content: `${EMOJIS.SUCCESS} **${type}** panel successfully deployed in ${channel}!\n` +
-        (['status', 'stock', 'basic_panel', 'gen_prime', 'prime_stock'].includes(type) ? `${EMOJIS.INFO} Auto-update activated (every 5 seconds)` : '')
+        (['status', 'stock', 'basic_panel', 'gen_premium', 'gen_prime', 'collab_targxt'].includes(type) ? `${EMOJIS.INFO} Auto-update activated (every 5 seconds)` : '')
     });
 
   } catch (error) {
@@ -155,8 +145,8 @@ async function execute(interaction) {
  * Build ultra-styled basic generation panel with custom emojis - NO ASCII (Supports multiple messages)
  */
 async function buildBasicPanels(guild) {
-  // Get all free and premium services
-  const services = [...getServicesByTier('free'), ...getServicesByTier('premium')];
+  // Get all free services
+  const services = getServicesByTier('free');
   
   // Fetch stock data for button labels
   const { query } = require('../database/hybridPool');
@@ -190,43 +180,17 @@ async function buildBasicPanels(guild) {
   for (let i = 0; i < availableServices.length; i += 25) {
     const chunk = availableServices.slice(i, i + 25);
     
-    // Build service list with emojis for the description
-    // Format nicely as a blockquote grid
-    let serviceList = '> ';
-    let count = 0;
-    for (const service of chunk.slice(0, 12)) {
-      const emoji = await getOrFetchEmoji(guild, service);
-      const emojiStr = typeof emoji === 'string' ? emoji : (emoji?.toString() || service.defaultEmoji);
-      serviceList += `${emojiStr} **${service.label}**  `;
-      count++;
-      if (count % 3 === 0 && count < 12) serviceList += '\n> ';
-    }
-    if (chunk.length > 12) serviceList += `\n> *... and ${chunk.length - 12} other services below*`;
-    
-    const titleSuffix = i > 0 ? ` (Part ${Math.floor(i/25) + 1})` : '';
-
-    // Ultra-styled embed WITHOUT ASCII
     const embed = new EmbedBuilder()
-      .setTitle(`✨ PRIMEGEN BASIC${titleSuffix}`)
+      .setTitle(`⚡ PRIMEGEN.EU | FREE GENERATORS${titleSuffix}`)
       .setDescription(
-        i === 0 ? (
-          '### 🎁 Free & Premium Access\n\n' +
-          '> 🔄 Stock updated **in real time**\n' +
-          '> 🌍 Access to a wide catalog of services\n' +
-          '> 💬 Remember to leave a **#proof**\n' +
-          '> 💎 Support: `.gg/primegen`\n\n' +
-          '### 📦 Available Services\n' +
-          `${serviceList}\n\n` +
-          '**👇 Click a button below to generate!**'
-        ) : (
-          '### 📦 More services...\n\n' +
-          `${serviceList}\n\n` +
-          '**👇 Click a button below to generate!**'
-        )
+        'Welcome to **PrimeGen Free**.\n\n' +
+        '• **Stock:** Synced in real-time with `primegen.eu`\n' +
+        '• **Support:** `.gg/primegen`\n\n' +
+        'Select a service below to generate an account.'
       )
       .setColor(COLORS.FREE)
       .setFooter({ 
-        text: '✨ PrimeGen • Basic Access' + titleSuffix,
+        text: '⚡ PrimeGen.eu • Connected' + titleSuffix,
         iconURL: 'https://i.goopics.net/2eukvn.gif'
       })
       .setTimestamp();
@@ -279,24 +243,20 @@ async function buildBasicPanels(guild) {
  * Build ultra-styled verification panel - OAUTH2 LINK
  */
 function buildVerificationPanel() {
-  const redirectUri = process.env.DISCORD_REDIRECT_URI || 'https://limoon-space.cloud/callback';
-  const OAUTH2_URL = redirectUri.replace(/\/callback\/?$/, '');
+  const OAUTH2_URL = 'https://primegen.eu/api/auth/signin/discord';
 
   const embed = new EmbedBuilder()
-    .setTitle('✅ PrimeGen Verification')
+    .setTitle('⚡ PRIMEGEN.EU | VERIFICATION')
     .setDescription(
-      '**Welcome to PrimeGen!**\n\n' +
-      'To access all channels and features:\n\n' +
-      '✅ Click the button below\n' +
-      '🎁 Automatic Verified role assignment\n' +
-      '⚡ Instant access to all channels\n' +
-      '👑 Unlock all features\n\n' +
-      'Ready? Click now!'
+      'Welcome to **PrimeGen**.\n\n' +
+      'Please verify your Discord account to gain full access to the server and our services.\n\n' +
+      '• Click the **Verify Me** button to link your account.\n' +
+      '• Powered by `primegen.eu`'
     )
     .setColor(COLORS.SUCCESS)
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: '✅ PrimeGen Verification • Secure & Instant',
+      text: '⚡ PrimeGen.eu Verification • Secure & Instant',
       iconURL: 'https://i.goopics.net/2eukvn.gif'
     })
     .setTimestamp();
@@ -321,20 +281,16 @@ function buildVerificationPanel() {
  */
 function buildTicketPanel() {
   const embed = new EmbedBuilder()
-    .setTitle('🎫 Support PrimeGen')
+    .setTitle('⚡ PRIMEGEN.EU | SUPPORT')
     .setDescription(
-      '**Need assistance or information?**\n\n' +
-      '> 💳 **Purchases & Orders** (Payment issue, delivery)\n' +
-      '> ♻️ **Replacements** (Defective account, warranty)\n' +
-      '> 🤝 **Partnerships** (Collab, YouTube, TikTok)\n' +
-      '> ❓ **General Questions** (How to generate, VIP)\n\n' +
-      '*Our team usually replies in under 5 minutes.*\n' +
-      '**👇 Click the button below to open a ticket!**'
+      'Welcome to **PrimeGen Support**.\n\n' +
+      'If you have any issues with purchases, generators, or have a general inquiry, click the button below to open a ticket.\n\n' +
+      'Our team will assist you shortly.'
     )
     .setColor(COLORS.INFO)
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: '🎫 PrimeGen Support • Available 24/7',
+      text: '⚡ PrimeGen.eu Support • Available 24/7',
       iconURL: 'https://i.goopics.net/2eukvn.gif'
     })
     .setTimestamp();
@@ -394,12 +350,12 @@ async function buildStockPanel(guild) {
   }
   
   const embed = new EmbedBuilder()
-    .setTitle('📦 PrimeGen - Live Stock')
+    .setTitle('⚡ PRIMEGEN.EU | LIVE STOCK')
     .setDescription(description)
     .setColor(COLORS.SUCCESS)
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: '📦 PrimeGen Stock • Auto Updates',
+      text: '⚡ PrimeGen.eu Stock • Real-Time Updates',
       iconURL: 'https://i.goopics.net/2eukvn.gif'
     })
     .setTimestamp();
@@ -412,17 +368,17 @@ async function buildStockPanel(guild) {
  */
 function buildFAQPanel() {
   const embed = new EmbedBuilder()
-    .setTitle('❓ PrimeGen - Frequently Asked Questions (FAQ)')
+    .setTitle('⚡ PRIMEGEN.EU | F.A.Q')
     .setDescription(
       '**Welcome to the FAQ! Here are answers to the most common questions:**\n\n' +
       '> ⚡ **How do I generate an account?**\n' +
-      '> Go to the free or premium generator channel and click the button for the service you want.\n\n' +
+      '> Go to the generator channels or directly on **[primegen.eu](https://primegen.eu)**.\n\n' +
       '> ⏱️ **Is there a cooldown?**\n' +
-      '> Yes! Free users have a longer cooldown between generations. Premium users have a much shorter or zero cooldown. (Check `/help` for your status!)\n\n' +
+      '> Yes! Free users have a cooldown between generations. Premium users have zero cooldown. (Check `/help` for your status!)\n\n' +
       '> 👑 **How do I get Premium?**\n' +
-      '> You can buy Premium to unlock exclusive services, bypass cooldowns, and get instant priority delivery. Open a ticket to purchase!\n\n' +
+      '> You can buy Premium to unlock exclusive services, bypass cooldowns, and get instant priority delivery. Check the **Shop**!\n\n' +
       '> ❌ **My generated account doesn\'t work!**\n' +
-      '> Free accounts are community-provided and can sometimes die fast. For guaranteed high-quality accounts, use the **Premium** generator. If you purchased something and it doesn\'t work, open a **Ticket**.\n\n' +
+      '> Free accounts can sometimes die fast. For guaranteed high-quality accounts, use the **Premium** generator. If you purchased something and it doesn\'t work, open a **Ticket**.\n\n' +
       '> 💬 **Why should I leave a #proof?**\n' +
       '> Leaving proofs helps us maintain trust and sometimes earns you rewards! Plus, it\'s nice to say thanks.\n\n' +
       '*Still have questions? Feel free to open a ticket!*'
@@ -430,7 +386,7 @@ function buildFAQPanel() {
     .setColor(COLORS.INFO)
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: '❓ PrimeGen • Knowledge Base',
+      text: '⚡ PrimeGen.eu • Knowledge Base',
       iconURL: 'https://i.goopics.net/2eukvn.gif'
     })
     .setTimestamp();
@@ -447,7 +403,7 @@ async function buildShopPanel(guild) {
 
   const { StringSelectMenuBuilder } = require('discord.js');
   const embed = new EmbedBuilder()
-    .setTitle('🛒 PrimeGen - Auto Shop')
+    .setTitle('⚡ PRIMEGEN.EU | SHOP')
     .setDescription(
       '**Welcome to our Automated Shop!** 🚀\n\n' +
       'Here you can purchase Discord Server Boosts, Discord Nitro, and Robux instantly.\n' +
@@ -458,9 +414,9 @@ async function buildShopPanel(guild) {
       '3️⃣ Click **Submit Payment Proof** to verify your order.\n\n' +
       '> ⚡ Secure, Fast, and Reliable!'
     )
-    .setColor(COLORS.INFO)
+    .setColor(COLORS.PREMIUM)
     .setImage(PANEL_BANNER_URL)
-    .setFooter({ text: 'PrimeGen • Auto Shop System' })
+    .setFooter({ text: '⚡ PrimeGen.eu • Auto Shop System', iconURL: 'https://i.goopics.net/2eukvn.gif' })
     .setTimestamp();
 
   const selectRow = new ActionRowBuilder().addComponents(
@@ -566,51 +522,15 @@ async function buildPrimePanel(guild) {
 
   if (availableServices.length === 0) {
     const embed = new EmbedBuilder()
-      .setTitle('💎 PRIMEGEN PRIME')
+      .setTitle('⚡ PRIMEGEN.EU | PRIME GENERATOR')
       .setDescription('**No Prime service is currently available!**\n\nCome back later after the next restock.')
-      .setColor('#FFD700')
+      .setColor(COLORS.PREMIUM)
       .setImage(PANEL_BANNER_URL)
-      .setFooter({ text: '💎 PrimeGen Prime • Ultra Exclusive', iconURL: 'https://i.goopics.net/2eukvn.gif' })
+      .setFooter({ text: '⚡ PrimeGen.eu Prime • Ultra Exclusive', iconURL: 'https://i.goopics.net/2eukvn.gif' })
       .setTimestamp();
     return [{ embed, components: [] }];
   }
 
-  // Split services into chunks of 25 (Discord max components per message)
-  for (let i = 0; i < availableServices.length; i += 25) {
-    const chunk = availableServices.slice(i, i + 25);
-
-    // Build service list with emojis for the description
-    let serviceList = '> ';
-    let count = 0;
-    for (const service of chunk.slice(0, 12)) {
-      const emoji = await getOrFetchEmoji(guild, service);
-      const emojiStr = typeof emoji === 'string' ? emoji : (emoji?.toString() || service.defaultEmoji);
-      serviceList += `${emojiStr} **${service.label}**  `;
-      count++;
-      if (count % 3 === 0 && count < 12) serviceList += '\n> ';
-    }
-    if (chunk.length > 12) serviceList += `\n> *... and ${chunk.length - 12} other services below*`;
-
-    const titleSuffix = i > 0 ? ` (Part ${Math.floor(i/25) + 1})` : '';
-
-    // Ultra-styled embed WITHOUT ASCII
-    const embed = new EmbedBuilder()
-      .setTitle(`💎 PRIMEGEN PRIME${titleSuffix}`)
-      .setDescription(
-        i === 0 ? (
-          '### 👑 Prime Access\n\n' +
-          '> ⚡ **No queue** nor ads\n' +
-          '> 🏆 Guaranteed **High/Medium quality** accounts\n' +
-          '> 📩 **Instant** delivery in DMs\n' +
-          '> 💎 24/7 Priority Support\n\n' +
-          '### 📦 Prime Services\n' +
-          `${serviceList}\n\n` +
-          '**👇 Click a button below to generate!**'
-        ) : (
-          '### 📦 More Prime services...\n\n' +
-          `${serviceList}\n\n` +
-          '**👇 Click a button below to generate!**'
-        )
       )
       .setColor('#FFD700') // Gold color for Prime
       .setFooter({ 
@@ -699,12 +619,12 @@ async function buildPrimeStockPanel(guild) {
     '> 🔒 *Restock is strictly restricted to staff using `/prime-restock`*';
 
   const embed = new EmbedBuilder()
-    .setTitle('💎 PrimeGen - Prime Stock Panel')
+    .setTitle('⚡ PRIMEGEN.EU | PRIME STOCK')
     .setDescription(description)
-    .setColor('#FFD700')
+    .setColor(COLORS.PREMIUM)
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: '💎 PrimeGen Prime Stock • Auto Updates Every 5s',
+      text: '⚡ PrimeGen.eu Prime Stock • Auto Updates Every 5s',
       iconURL: 'https://i.goopics.net/2eukvn.gif'
     })
     .setTimestamp();
@@ -724,27 +644,25 @@ async function buildVipPricePanel(guild) {
   const flashEmoji = guild ? guild.emojis.cache.find(e => e.name.toLowerCase().includes('flash') || e.name.toLowerCase().includes('zap')) || '⚡' : '⚡';
 
   const embed = new EmbedBuilder()
-    .setTitle(`${vipEmoji} PRIMEGEN V.I.P - THE ULTIMATE EXPERIENCE`)
+    .setTitle(`⚡ PRIMEGEN.EU | PRIME SUBSCRIPTION`)
     .setDescription(
-      `**Upgrade to V.I.P and unlock the full potential of PrimeGen!** ${starEmoji}\n\n` +
+      `**Upgrade to PRIME and unlock the full potential of PrimeGen!** ${starEmoji}\n\n` +
       `### ${flashEmoji} EXCLUSIVE ADVANTAGES:\n` +
       `> ${checkEmoji} **Zero Cooldown:** Generate without waiting (or highly reduced limits).\n` +
       `> ${checkEmoji} **Prime Access:** Access to the ultra-exclusive **💎 Prime** generators.\n` +
-      `> ${checkEmoji} **Huge Daily Limits:** Generate up to 50 accounts per day!\n` +
+      `> ${checkEmoji} **Web & Discord Sync:** Your subscription works everywhere.\n` +
       `> ${checkEmoji} **Priority Support:** Your tickets are answered first.\n` +
-      `> ${checkEmoji} **High Quality:** Guaranteed working and high-level accounts.\n` +
-      `> ${checkEmoji} **Private Channels:** Access to the secret VIP Lounge and restock leaks.\n\n` +
-      `### ${moneyEmoji} VIP PRICING:\n` +
-      `> **1 Week V.I.P** ➔ \`$3.99\` / \`3.99€\`\n` +
-      `> **1 Month V.I.P** ➔ \`$9.99\` / \`9.99€\` (Best Value 🔥)\n` +
-      `> **Lifetime V.I.P** ➔ \`$39.99\` / \`39.99€\`\n\n` +
+      `> ${checkEmoji} **High Quality:** Guaranteed working and high-level accounts.\n\n` +
+      `### ${moneyEmoji} PRIME PRICING:\n` +
+      `> **Premium** ➔ \`4.99€\` / month\n` +
+      `> **Prime** ➔ \`9.99€\` / month (Best Value 🔥)\n\n` +
       `**How to purchase?**\n` +
-      `Click the button below to open a ticket and complete your purchase! We accept PayPal, Crypto, and Giftcards.`
+      `Click the button below to open a ticket or visit **[primegen.eu/dashboard/shop](https://primegen.eu/dashboard/shop)**.`
     )
-    .setColor('#FF00FF') // VIP Pink/Purple color
+    .setColor(COLORS.PREMIUM) // VIP Pink/Purple color
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: '👑 PrimeGen V.I.P • Elevate your experience',
+      text: '⚡ PrimeGen.eu PRIME • Elevate your experience',
       iconURL: 'https://i.goopics.net/2eukvn.gif'
     })
     .setTimestamp();
@@ -764,4 +682,173 @@ async function buildVipPricePanel(guild) {
  */
 
 
-module.exports = { command, execute, buildBasicPanels, buildPrimePanel, buildPrimeStockPanel, buildStockPanel, buildFAQPanel, buildShopPanel, buildVipPricePanel };
+/**
+ * Build ultra-styled Premium generation panel
+ */
+async function buildPremiumPanel(guild) {
+  // Get all premium services
+  const services = getServicesByTier('premium');
+  
+  // Fetch stock data for button labels
+  const { query } = require('../database/hybridPool');
+  const stockData = {};
+  try {
+    const result = await query('SELECT service_id, COUNT(*) as count FROM combos GROUP BY service_id');
+    for (const row of result.rows) {
+      stockData[row.service_id] = parseInt(row.count, 10) || 0;
+    }
+  } catch (error) {
+    // Silently continue if stock fetch fails
+  }
+
+  // Only keep services that have stock > 0
+  const availableServices = services.filter(service => (stockData[service.id] || 0) > 0);
+
+  const panels = [];
+  
+  if (availableServices.length === 0) {
+    const embed = new EmbedBuilder()
+      .setTitle('⚡ PRIMEGEN.EU | PREMIUM GENERATORS')
+      .setDescription('**No premium service is currently available!**\n\nCome back later after the next restock.')
+      .setColor(COLORS.PREMIUM)
+      .setImage(PANEL_BANNER_URL)
+      .setFooter({ text: '⚡ PrimeGen.eu • Premium Access', iconURL: 'https://i.goopics.net/2eukvn.gif' })
+      .setTimestamp();
+    return [{ embed, components: [] }];
+  }
+  
+  // Split services into chunks of 25 (Discord max components per message)
+  for (let i = 0; i < availableServices.length; i += 25) {
+    const chunk = availableServices.slice(i, i + 25);
+    
+    const embed = new EmbedBuilder()
+      .setTitle(`⚡ PRIMEGEN.EU | PREMIUM GENERATORS${titleSuffix}`)
+      .setDescription(
+        'Welcome to **PrimeGen Premium**.\n\n' +
+        '• **Stock:** Synced in real-time with `primegen.eu`\n' +
+        '• **Support:** `.gg/primegen`\n\n' +
+        'Select a Premium service below to generate an account.'
+      )
+      .setColor(COLORS.PREMIUM)
+      .setFooter({ 
+        text: '⚡ PrimeGen.eu • Connected' + titleSuffix,
+        iconURL: 'https://i.goopics.net/2eukvn.gif'
+      })
+      .setTimestamp();
+      
+    // Only add banner to the first message to prevent chat clutter
+    if (i === 0) {
+      embed.setImage(PANEL_BANNER_URL);
+    }
+
+    // Create buttons with CUSTOM emojis
+    const components = [];
+    let currentRow = new ActionRowBuilder();
+    let buttonCount = 0;
+
+    for (const service of chunk) {
+      // Get or create custom emoji
+      const emoji = await getOrFetchEmoji(guild, service);
+      
+      const stockCount = stockData[service.id] || 0;
+      
+      const button = new ButtonBuilder()
+        .setCustomId(`gen_${service.tier}_${service.id}`)
+        .setLabel(`${service.label.substring(0, 60)} [${stockCount}]`)
+        .setStyle(ButtonStyle.Success);
+
+      // Set emoji (custom object or default string)
+      if (typeof emoji === 'string') {
+        button.setEmoji(emoji);
+      } else if (emoji && emoji.id) {
+        button.setEmoji(emoji.id);
+      }
+
+      currentRow.addComponents(button);
+      buttonCount++;
+
+      // Start new row after 5 buttons
+      if (buttonCount % 5 === 0 || buttonCount === chunk.length) {
+        components.push(currentRow);
+        currentRow = new ActionRowBuilder();
+      }
+    }
+    
+    panels.push({ embed, components });
+  }
+
+  return panels;
+}
+
+/**
+ * Build ultra-styled Targxt Collab Panel
+ */
+async function buildTargxtPanel(guild) {
+  // We can reuse some premium services or all free services for Targxt
+  const services = getServicesByTier('free'); // Can adjust what services are given
+  
+  // Fetch stock data for button labels
+  const { query } = require('../database/hybridPool');
+  const stockData = {};
+  try {
+    const result = await query('SELECT service_id, COUNT(*) as count FROM combos GROUP BY service_id');
+    for (const row of result.rows) {
+      stockData[row.service_id] = parseInt(row.count, 10) || 0;
+    }
+  } catch (error) {
+    // Silently continue if stock fetch fails
+  }
+
+  // Only keep top 5 services for the collab to keep it neat
+  const availableServices = services.filter(service => (stockData[service.id] || 0) > 0).slice(0, 5);
+
+  const panels = [];
+  
+  const embed = new EmbedBuilder()
+    .setTitle(`🤝 PRIMEGEN x TARGXT`)
+    .setDescription(
+      'Welcome to the **Targxt Collab** generator.\n\n' +
+      '• **Requirement:** `.gg/targxt` in your Custom Status\n' +
+      '• **Stock:** Shared with PrimeGen\n' +
+      '• **Support:** `.gg/targxt`\n\n' +
+      'Select a service below to generate.'
+    )
+    .setColor('#FF4500') // Targxt color? Orange/Red
+    .setFooter({ 
+      text: '🤝 PrimeGen x Targxt • Partnership',
+      iconURL: 'https://i.goopics.net/2eukvn.gif'
+    })
+    .setImage(PANEL_BANNER_URL)
+    .setTimestamp();
+      
+  const components = [];
+  let currentRow = new ActionRowBuilder();
+
+  for (const service of availableServices) {
+    const emoji = await getOrFetchEmoji(guild, service);
+    const stockCount = stockData[service.id] || 0;
+    
+    // Custom ID for Targxt collab check
+    const button = new ButtonBuilder()
+      .setCustomId(`gen_targxt_${service.id}`)
+      .setLabel(`${service.label.substring(0, 60)} [${stockCount}]`)
+      .setStyle(ButtonStyle.Danger);
+
+    if (typeof emoji === 'string') {
+      button.setEmoji(emoji);
+    } else if (emoji && emoji.id) {
+      button.setEmoji(emoji.id);
+    }
+
+    currentRow.addComponents(button);
+  }
+  
+  if (availableServices.length > 0) {
+    components.push(currentRow);
+  }
+
+  panels.push({ embed, components });
+  return panels;
+}
+
+module.exports = { command, execute, buildBasicPanels, buildPremiumPanel, buildPrimePanel, buildTargxtPanel };

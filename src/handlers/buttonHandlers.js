@@ -25,7 +25,7 @@ async function handleButton(interaction) {
   const customId = interaction.customId;
 
   try {
-    if (customId.startsWith('gen_free_') || customId.startsWith('gen_premium_') || customId.startsWith('gen_prime_')) {
+    if (customId.startsWith('gen_free_') || customId.startsWith('gen_premium_') || customId.startsWith('gen_prime_') || customId.startsWith('gen_targxt_')) {
       await handleGenButton(interaction);
     } else if (customId === 'lang_fr' || customId === 'lang_en') {
       await handleLanguageSwitch(interaction);
@@ -89,13 +89,23 @@ async function handleGenButton(interaction) {
   const userId = interaction.user.id;
   const now = Date.now();
   const customStatus = interaction.member.presence?.activities.find(a => a.type === 4); // 4 = Custom Status
-  const hasVanity = customStatus && customStatus.state && customStatus.state.toLowerCase().includes('.gg/primegen');
-  const hasFreeRole = interaction.member.roles.cache.has('1532347064623698010');
 
-  if (!hasVanity && !hasFreeRole) {
-    return interaction.editReply({
-      content: '❌ **Access Denied!** You must put `.gg/primegen` in your Discord Custom Status to use the generator! (Mandatory even for VIPs 💎)'
-    });
+  if (tier === 'targxt') {
+    const hasTargxtVanity = customStatus && customStatus.state && customStatus.state.toLowerCase().includes('.gg/targxt');
+    if (!hasTargxtVanity) {
+      return interaction.editReply({
+        content: '❌ **Access Denied!** You must put `.gg/targxt` in your Discord Custom Status to use the Targxt Collab Generator!'
+      });
+    }
+  } else {
+    const hasVanity = customStatus && customStatus.state && customStatus.state.toLowerCase().includes('.gg/primegen');
+    const hasFreeRole = interaction.member.roles.cache.has('1532347064623698010');
+
+    if (!hasVanity && !hasFreeRole) {
+      return interaction.editReply({
+        content: '❌ **Access Denied!** You must put `.gg/primegen` in your Discord Custom Status to use the generator! (Mandatory even for VIPs 💎)'
+      });
+    }
   }
 
   // Check VIP/Premium role if tier is premium or prime
@@ -146,7 +156,7 @@ async function handleGenButton(interaction) {
     }
     
     let userCd = userCooldowns.get(userId) || { free: 0, premium: 0 };
-    let nextAllowed = (tier === 'premium' || tier === 'prime') ? userCd.premium : (tier === 'free' ? userCd.free : 0);
+    let nextAllowed = (tier === 'premium' || tier === 'prime') ? userCd.premium : userCd.free;
     
     if (now < nextAllowed) {
       const remainingMs = nextAllowed - now;
@@ -156,7 +166,7 @@ async function handleGenButton(interaction) {
     }
 
     // Set new cooldown based on tier
-    if (tier === 'free') userCd.free = now + cdFree;
+    if (tier === 'free' || tier === 'targxt') userCd.free = now + cdFree;
     else if (tier === 'premium' || tier === 'prime') userCd.premium = now + cdPremium;
     userCooldowns.set(userId, userCd);
 
@@ -170,9 +180,9 @@ async function handleGenButton(interaction) {
       userDaily = { date: today, free: 0, premium: 0 };
     }
 
-    if (tier === 'free' && limitFree !== 0 && userDaily.free >= limitFree) {
+    if ((tier === 'free' || tier === 'targxt') && limitFree !== 0 && userDaily.free >= limitFree) {
       return interaction.editReply({
-        content: `${EMOJIS.ERROR} **Limite atteinte !** Tu as utilisé toutes tes générations Free d'aujourd'hui (${limitFree}/${limitFree}). Reviens demain !`
+        content: `${EMOJIS.ERROR} **Limite atteinte !** Tu as utilisé toutes tes générations de ce niveau aujourd'hui (${limitFree}/${limitFree}). Reviens demain !`
       });
     } else if ((tier === 'premium' || tier === 'prime') && limitPremium !== 0 && userDaily.premium >= limitPremium) {
       return interaction.editReply({
@@ -181,7 +191,7 @@ async function handleGenButton(interaction) {
     }
 
     // Increment daily usage
-    if (tier === 'free') userDaily.free += 1;
+    if (tier === 'free' || tier === 'targxt') userDaily.free += 1;
     else if (tier === 'premium' || tier === 'prime') userDaily.premium += 1;
     userDailyCounts.set(userId, userDaily);
   }

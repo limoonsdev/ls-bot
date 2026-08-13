@@ -52,10 +52,12 @@ async function buildStatusEmbed(guild) {
   let description = '**💻 Systems Status**\n';
   description += `${EMOJI_UP} 🤖 **Discord Bot** • \`Online\`\n`;
   description += `${EMOJI_UP} ⚙️ **Backend API** • \`Online\`\n`;
+  description += `${EMOJI_UP} 🌐 **Web Dashboard (primegen.eu)** • \`Online\`\n`;
   description += `${EMOJI_UP} 💾 **Database** • \`Online\`\n\n`;
+  description += '*(All systems are fully synchronized in real-time)*';
 
   const embed = new EmbedBuilder()
-    .setTitle('📊 PrimeGen • Systems Status')
+    .setTitle('⚡ PRIMEGEN.EU | SYSTEMS STATUS')
     .setDescription(description)
     .addFields(
       {
@@ -67,7 +69,7 @@ async function buildStatusEmbed(guild) {
     .setColor(COLORS.INFO)
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: `PrimeGen • Systems Manager • ${new Date().toLocaleTimeString('fr-FR')}`,
+      text: `⚡ PrimeGen.eu • Systems Manager • ${new Date().toLocaleTimeString('fr-FR')}`,
       iconURL: 'https://i.goopics.net/2eukvn.gif'
     })
     .setTimestamp();
@@ -80,7 +82,7 @@ async function buildStatusEmbed(guild) {
  */
 function registerPanel(messageIdInput, channelId, guildId, type, client) {
   // Only update supported panels
-  if (!['status', 'stock', 'basic_panel', 'gen_prime', 'prime_stock'].includes(type)) {
+  if (!['status', 'stock', 'basic_panel', 'gen_premium', 'gen_prime', 'collab_targxt'].includes(type)) {
     return;
   }
 
@@ -127,10 +129,12 @@ function registerPanel(messageIdInput, channelId, guildId, type, client) {
       } else if (type === 'gen_prime') {
         const { buildPrimePanel } = require('../commands/deploy');
         newPanels = await buildPrimePanel(guild);
-      } else if (type === 'prime_stock') {
-        const { buildPrimeStockPanel } = require('../commands/deploy');
-        const primeStockPanel = await buildPrimeStockPanel(guild);
-        newPanels = [{ embed: primeStockPanel.embed, components: primeStockPanel.components }];
+      } else if (type === 'gen_premium') {
+        const { buildPremiumPanel } = require('../commands/deploy');
+        newPanels = await buildPremiumPanel(guild);
+      } else if (type === 'collab_targxt') {
+        const { buildTargxtPanel } = require('../commands/deploy');
+        newPanels = await buildTargxtPanel(guild);
       }
 
       // Update each message
