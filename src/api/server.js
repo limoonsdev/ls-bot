@@ -47,6 +47,74 @@ function startApiServer(client, port) {
     next();
   });
 
+  // Get patchnotes from Discord channel
+  app.get('/api/patchnotes', async (req, res) => {
+    try {
+      const guild = client.guilds.cache.get(MAIN_GUILD_ID);
+      if (!guild) return res.json([]);
+      const channel = guild.channels.cache.find(c => c.name.toLowerCase().includes('patchnote'));
+      if (!channel) return res.json([]);
+      
+      const messages = await channel.messages.fetch({ limit: 10 });
+      const notes = messages.map(m => ({
+        id: m.id,
+        content: m.content,
+        timestamp: m.createdTimestamp,
+        authorName: m.author.username,
+        authorAvatar: m.author.displayAvatarURL()
+      }));
+      res.json(notes);
+    } catch(err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Post an Avis (Review) to Discord channel
+  app.post('/api/avis', async (req, res) => {
+    const { note, commentaire, userId } = req.body;
+    if (!note || !commentaire) return res.status(400).json({ error: "Missing fields" });
+    
+    try {
+      const guild = client.guilds.cache.get(MAIN_GUILD_ID);
+      if (!guild) return res.status(500).json({ error: "Unknown Guild" });
+      const channel = guild.channels.cache.find(c => c.name.toLowerCase().includes('avis'));
+      if (!channel) return res.status(500).json({ error: "Avis channel not found" });
+
+      const webhooks = await channel.fetchWebhooks();
+      let webhook = webhooks.find(wh => wh.token);
+      if (!webhook) {
+        webhook = await channel.createWebhook({
+          name: 'PrimeGen Avis',
+          avatar: client.user.displayAvatarURL(),
+        });
+      }
+
+      let authorName = "Web User";
+      let authorAvatar = client.user.displayAvatarURL();
+      
+      if (userId) {
+        try {
+          const user = await client.users.fetch(userId);
+          if (user) {
+            authorName = user.username;
+            authorAvatar = user.displayAvatarURL({ dynamic: true, size: 256 });
+          }
+        } catch(e) {}
+      }
+
+      const stars = '⭐'.repeat(note) + '☆'.repeat(5 - note);
+      await webhook.send({
+        content: `**Note :** ${stars}\n\n${commentaire}`,
+        username: authorName,
+        avatarURL: authorAvatar
+      });
+
+      res.json({ success: true });
+    } catch(err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // =====================================================
   // ADMIN SECURITY (STAFF CHECK)
   // =====================================================
