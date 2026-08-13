@@ -206,6 +206,30 @@ function startApiServer(client, port) {
   });
 
   // =====================================================
+  // SHOP
+  // =====================================================
+
+  app.get('/api/shop', (req, res) => {
+    res.json([
+      {
+        id: 'premium',
+        name: 'Premium',
+        style: 'premium',
+        price: '4.99',
+        features: ["Access to Premium Generators", "50 Generations per day", "1 minute cooldown", "Access to PrimeMail"]
+      },
+      {
+        id: 'prime',
+        name: 'Prime',
+        style: 'prime',
+        badge: 'Meilleur Choix',
+        price: '9.99',
+        features: ["Everything in Premium", "Unlimited Generations", "No Cooldowns", "Priority Support", "Exclusive Prime Accounts"]
+      }
+    ]);
+  });
+
+  // =====================================================
   // USER
   // =====================================================
 
