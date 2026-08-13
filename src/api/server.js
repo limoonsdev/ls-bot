@@ -34,6 +34,40 @@ function startApiServer(client, port) {
   });
 
   // =====================================================
+  // GLOBAL SECURITY (API KEY)
+  // =====================================================
+  app.use('/api', (req, res, next) => {
+    if (req.path === '/api/health') return next(); // allow health check
+
+    const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
+    if (apiKey !== (process.env.API_KEY || 'PRIMEGEN_MASTER_SECRET_2026')) {
+      logger.warn('API', `Unauthorized access attempt to ${req.path}`);
+      return res.status(403).json({ error: 'Unauthorized: Invalid API Key' });
+    }
+    next();
+  });
+
+  // =====================================================
+  // ADMIN SECURITY (STAFF CHECK)
+  // =====================================================
+  app.use('/api/admin', async (req, res, next) => {
+    try {
+      const { getOrCreateGuildConfig } = require('../database/models');
+      const config = await getOrCreateGuildConfig(MAIN_GUILD_ID);
+      const staffIds = config.config_data?.staff_ids || ["1178305844698435625", "1532343959722917979"];
+      
+      const userId = req.headers['x-user-id'];
+      if (!userId || !staffIds.includes(userId)) {
+        logger.warn('API', `Forbidden Admin Access attempt by ${userId} to ${req.path}`);
+        return res.status(403).json({ error: 'Forbidden: Admin access required' });
+      }
+      next();
+    } catch (err) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+
+  // =====================================================
   // HEALTH & STATS
   // =====================================================
 
@@ -403,7 +437,7 @@ function startApiServer(client, port) {
     try {
       const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
 
-      const category_channel = guild.channels.cache.find(c => c.name === 'Tickets' && c.type === 4);
+      const category_channel = guild.channels.cache.find(c => c.name.toLowerCase().includes('ticket') && c.type === 4);
       const ticketChannel = await guild.channels.create({
         name: `web-${username || 'user'}-${Date.now().toString(36)}`,
         type: 0,
