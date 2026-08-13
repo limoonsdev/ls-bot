@@ -645,6 +645,41 @@ function startApiServer(client, port) {
     }
   });
 
+  // Get all tickets for admin
+  app.get('/api/admin/tickets', async (req, res) => {
+    try {
+      const { query } = require('../database/hybridPool');
+      const result = await query(
+        `SELECT * FROM tickets ORDER BY CASE WHEN status = 'open' THEN 0 ELSE 1 END, created_at DESC LIMIT 100`
+      );
+      const guild = client.guilds.cache.get(MAIN_GUILD_ID);
+      const tickets = await Promise.all(
+        result.rows.map(async (ticket) => {
+          let hasChannel = false;
+          if (guild) {
+            try {
+              const channel = await guild.channels.fetch(ticket.channel_id);
+              if (channel) hasChannel = true;
+            } catch(e) {}
+          }
+          return {
+            id: ticket.id,
+            userId: ticket.user_id,
+            channelId: ticket.channel_id,
+            subject: ticket.subject,
+            category: ticket.category || 'General',
+            status: hasChannel ? ticket.status : 'closed',
+            createdAt: ticket.created_at,
+            closedAt: ticket.closed_at,
+          };
+        })
+      );
+      res.json(tickets);
+    } catch(err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post('/api/admin/staff', async (req, res) => {
     const { staffIds } = req.body || {};
     try {
