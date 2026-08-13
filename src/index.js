@@ -119,7 +119,7 @@ class NextGenBot {
       
       const commands = this.commands.map(cmd => cmd.command.toJSON());
       const rest = new REST({ version: '10' }).setToken(config.bot.token);
-      const MAIN_GUILD_ID = '1532343959722917979';
+      const MAIN_GUILD_ID = '1178305844698435625';
       
       // 1. Delete all guild-specific commands to avoid duplicates
       if (MAIN_GUILD_ID) {

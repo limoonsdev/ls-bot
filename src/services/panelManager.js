@@ -151,7 +151,7 @@ function registerPanel(messageIdInput, channelId, guildId, type, client) {
 
       logger.debug('PanelManager', `Updated ${type} panel group`, { groupId });
     } catch (error) {
-      if (error.code === 10003 || error.code === 50001 || error.code === 10011) { // Unknown Channel, Missing Access, Unknown Role/Missing Permissions etc
+      if (error.code === 10003 || error.code === 50001 || error.code === 10011 || error.code === 10004) { // Unknown Channel, Missing Access, Unknown Role/Missing Permissions, Unknown Guild
         logger.warn('PanelManager', `Cannot access channel/guild, unregistering panel group ${groupId}`);
         unregisterPanel(groupId);
       } else {
