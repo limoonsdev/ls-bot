@@ -34,11 +34,11 @@ module.exports = {
 
     try {
       await channel.send({ embeds: [embed] });
-      await interaction.reply({ content: `✅ Patchnotes envoyés avec succès dans ${channel}!`, ephemeral: true });
+      await interaction.reply({ content: `✅ Patchnotes envoyés avec succès dans ${channel}!`, flags: 64 });
       logger.info('Command', `Patchnotes envoyés par ${interaction.user.tag}`);
     } catch (error) {
       logger.error('Command', `Erreur envoi patchnotes: ${error.message}`);
-      await interaction.reply({ content: `❌ Erreur lors de l'envoi: ${error.message}`, ephemeral: true });
+      await interaction.reply({ content: `❌ Erreur lors de l'envoi: ${error.message}`, flags: 64 });
     }
   }
 };

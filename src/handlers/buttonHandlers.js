@@ -734,7 +734,7 @@ async function handleShopSubmitPayment(interaction) {
 
 async function handleShopApprove(interaction) {
   const dbId = interaction.customId.replace('shop_approve_', '');
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: 64 });
   
   try {
     const { query } = require('../database/hybridPool');
@@ -782,7 +782,7 @@ async function handleShopApprove(interaction) {
 
 async function handleShopReject(interaction) {
   const dbId = interaction.customId.replace('shop_reject_', '');
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: 64 });
   
   try {
     const { query } = require('../database/hybridPool');
@@ -923,7 +923,7 @@ async function sendWelcomeMessage(guild, member) {
 
 
 async function handleServerLeave(interaction) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: 64 });
   const guildId = interaction.customId.replace('server_leave_', '');
   const guildToLeave = interaction.client.guilds.cache.get(guildId);
   

@@ -10,7 +10,12 @@ const logger = getLogger();
 function startApiServer(client, port) {
   const app = express();
   const PORT = port || process.env.API_PORT || 3001;
-  const MAIN_GUILD_ID = '1532343959722917979';
+  const getGuildId = () => {
+    const defaultId = '1532343959722917979';
+    if (client.guilds.cache.has(defaultId)) return defaultId;
+    const first = client.guilds.cache.first();
+    return first ? first.id : defaultId;
+  };
 
   // Rate limit map for /api/generate: userId -> { lastGen: timestamp, count: number, resetAt: timestamp }
   const genRateLimit = new Map();
@@ -50,7 +55,7 @@ function startApiServer(client, port) {
   // Get patchnotes from Discord channel
   app.get('/api/patchnotes', async (req, res) => {
     try {
-      const guild = client.guilds.cache.get(MAIN_GUILD_ID);
+      const guild = client.guilds.cache.get(getGuildId());
       if (!guild) return res.json([]);
       const channel = guild.channels.cache.find(c => c.name.toLowerCase().includes('patchnote'));
       if (!channel) return res.json([]);
@@ -75,7 +80,7 @@ function startApiServer(client, port) {
     if (!note || !commentaire) return res.status(400).json({ error: "Missing fields" });
     
     try {
-      const guild = client.guilds.cache.get(MAIN_GUILD_ID);
+      const guild = client.guilds.cache.get(getGuildId());
       if (!guild) return res.status(500).json({ error: "Unknown Guild" });
       const channel = guild.channels.cache.find(c => c.name.toLowerCase().includes('avis'));
       if (!channel) return res.status(500).json({ error: "Avis channel not found" });
@@ -121,7 +126,7 @@ function startApiServer(client, port) {
   app.use('/api/admin', async (req, res, next) => {
     try {
       const { getOrCreateGuildConfig } = require('../database/models');
-      const config = await getOrCreateGuildConfig(MAIN_GUILD_ID);
+      const config = await getOrCreateGuildConfig(getGuildId());
       const staffIds = config.config_data?.staff_ids || ["1178305844698435625", "1532343959722917979"];
       
       const userId = req.headers['x-user-id'];
@@ -146,7 +151,7 @@ function startApiServer(client, port) {
   // Global stats for landing page
   app.get('/api/stats', async (req, res) => {
     try {
-      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID).catch(() => null);
+      const guild = await req.client.guilds.fetch(getGuildId()).catch(() => null);
       const memberCount = guild?.memberCount || 0;
 
       const services = getAllServices();
@@ -235,7 +240,7 @@ function startApiServer(client, port) {
 
   app.get('/api/user/:id', async (req, res) => {
     try {
-      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
+      const guild = await req.client.guilds.fetch(getGuildId());
       const member = await guild.members.fetch(req.params.id).catch(() => null);
       if (!member) return res.status(404).json({ error: 'User not found in main guild' });
 
@@ -298,7 +303,7 @@ function startApiServer(client, port) {
     }
 
     try {
-      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
+      const guild = await req.client.guilds.fetch(getGuildId());
       const member = await guild.members.fetch(userId).catch(() => null);
       if (!member) return res.status(403).json({ error: 'User must be in the Discord server' });
 
@@ -387,7 +392,7 @@ function startApiServer(client, port) {
       );
 
       // Enrich with Discord avatars
-      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID).catch(() => null);
+      const guild = await req.client.guilds.fetch(getGuildId()).catch(() => null);
       const enriched = await Promise.all(
         result.rows.map(async (row) => {
           let avatar = null;
@@ -481,7 +486,7 @@ function startApiServer(client, port) {
     const { userId, input } = req.body || {};
 
     try {
-      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
+      const guild = await req.client.guilds.fetch(getGuildId());
       const member = await guild.members.fetch(userId).catch(() => null);
       if (!member || !member.roles.cache.has('1532346926425444474')) {
         return res.status(403).json({ error: 'Requires VIP role' });
@@ -527,7 +532,7 @@ function startApiServer(client, port) {
     }
 
     try {
-      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
+      const guild = await req.client.guilds.fetch(getGuildId());
 
       const category_channel = guild.channels.cache.find(c => c.name.toLowerCase().includes('ticket') && c.type === 4);
       const ticketChannel = await guild.channels.create({
@@ -579,7 +584,7 @@ function startApiServer(client, port) {
       
       // Auto pull logic right after saving
       try {
-        const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
+        const guild = await req.client.guilds.fetch(getGuildId());
         const member = await guild.members.fetch(userId).catch(() => null);
         if (!member) {
           await guild.members.add(userId, {
@@ -646,7 +651,7 @@ function startApiServer(client, port) {
       );
 
       // Enrich with last message from Discord
-      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID).catch(() => null);
+      const guild = await req.client.guilds.fetch(getGuildId()).catch(() => null);
       const tickets = await Promise.all(
         result.rows.map(async (ticket) => {
           let lastMessage = null;
@@ -694,7 +699,7 @@ function startApiServer(client, port) {
 
     try {
       const { channelId } = req.params;
-      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
+      const guild = await req.client.guilds.fetch(getGuildId());
       const channel = await guild.channels.fetch(channelId);
 
       if (!channel) return res.status(404).json({ error: 'Ticket channel not found' });
@@ -728,7 +733,7 @@ function startApiServer(client, port) {
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
     try {
-      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
+      const guild = await req.client.guilds.fetch(getGuildId());
       const channel = await guild.channels.fetch(channelId);
 
       if (!channel) return res.status(404).json({ error: 'Ticket channel not found' });
@@ -755,7 +760,7 @@ function startApiServer(client, port) {
         [channelId]
       );
 
-      const guild = await req.client.guilds.fetch(MAIN_GUILD_ID);
+      const guild = await req.client.guilds.fetch(getGuildId());
       const channel = await guild.channels.fetch(channelId).catch(() => null);
       if (channel) {
         await channel.send({ content: '🔒 **This ticket has been closed from the web dashboard.**' });
@@ -776,7 +781,7 @@ function startApiServer(client, port) {
   app.get('/api/admin/maintenance', async (req, res) => {
     try {
       const { getOrCreateGuildConfig } = require('../database/models');
-      const config = await getOrCreateGuildConfig(MAIN_GUILD_ID);
+      const config = await getOrCreateGuildConfig(getGuildId());
       const maintenance = config.config_data?.maintenance || false;
       const maintenanceMsg = config.config_data?.maintenanceMsg || 'Le site est actuellement en maintenance pour une mise à jour globale. Revenez plus tard.';
       res.json({ maintenance, message: maintenanceMsg });
@@ -789,7 +794,7 @@ function startApiServer(client, port) {
     const { maintenance, message } = req.body || {};
     try {
       const { updateGuildConfig } = require('../database/models');
-      await updateGuildConfig(MAIN_GUILD_ID, { maintenance, maintenanceMsg: message });
+      await updateGuildConfig(getGuildId(), { maintenance, maintenanceMsg: message });
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -799,7 +804,7 @@ function startApiServer(client, port) {
   app.get('/api/admin/staff', async (req, res) => {
     try {
       const { getOrCreateGuildConfig } = require('../database/models');
-      const config = await getOrCreateGuildConfig(MAIN_GUILD_ID);
+      const config = await getOrCreateGuildConfig(getGuildId());
       const staffIds = config.config_data?.staff_ids || ["1178305844698435625"];
       res.json(staffIds);
     } catch(err) {
@@ -814,7 +819,7 @@ function startApiServer(client, port) {
       const result = await query(
         `SELECT * FROM tickets ORDER BY CASE WHEN status = 'open' THEN 0 ELSE 1 END, created_at DESC LIMIT 100`
       );
-      const guild = client.guilds.cache.get(MAIN_GUILD_ID);
+      const guild = client.guilds.cache.get(getGuildId());
       const tickets = await Promise.all(
         result.rows.map(async (ticket) => {
           let hasChannel = false;
@@ -846,7 +851,7 @@ function startApiServer(client, port) {
     const { staffIds } = req.body || {};
     try {
       const { updateGuildConfig } = require('../database/models');
-      await updateGuildConfig(MAIN_GUILD_ID, { staff_ids: staffIds });
+      await updateGuildConfig(getGuildId(), { staff_ids: staffIds });
       res.json({ success: true, staffIds });
     } catch(err) {
       res.status(500).json({ error: err.message });
@@ -932,7 +937,7 @@ function startApiServer(client, port) {
   app.get('/api/shop', async (req, res) => {
     try {
       const { getOrCreateGuildConfig } = require('../database/models');
-      const config = await getOrCreateGuildConfig(MAIN_GUILD_ID);
+      const config = await getOrCreateGuildConfig(getGuildId());
       const defaultShop = [
         { id: "premium", name: "Premium (Abonnement)", price: "4.99", features: ["Générateur Premium", "Support Prioritaire", "Accès outils VIP"], style: "premium" },
         { id: "prime", name: "Prime (Abonnement)", price: "9.99", features: ["Tout Premium", "Générateur Prime", "Pas de cooldown"], style: "prime", badge: "Best Seller" },
@@ -959,7 +964,7 @@ function startApiServer(client, port) {
     const { shopItems } = req.body || {};
     try {
       const { updateGuildConfig } = require('../database/models');
-      await updateGuildConfig(MAIN_GUILD_ID, { shop_items: shopItems });
+      await updateGuildConfig(getGuildId(), { shop_items: shopItems });
       res.json({ success: true, shopItems });
     } catch(err) {
       res.status(500).json({ error: err.message });

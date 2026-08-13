@@ -25,7 +25,7 @@ module.exports = {
     const avisChannel = interaction.guild.channels.cache.find(c => c.name.toLowerCase().includes('avis'));
     
     if (!avisChannel) {
-      return interaction.reply({ content: "❌ Salon d'avis introuvable sur ce serveur.", ephemeral: true });
+      return interaction.reply({ content: "❌ Salon d'avis introuvable sur ce serveur.", flags: 64 });
     }
 
     try {
@@ -48,11 +48,11 @@ module.exports = {
         avatarURL: interaction.user.displayAvatarURL({ dynamic: true, size: 256 })
       });
 
-      await interaction.reply({ content: `✅ Merci pour votre avis ! Il a été publié dans ${avisChannel}.`, ephemeral: true });
+      await interaction.reply({ content: `✅ Merci pour votre avis ! Il a été publié dans ${avisChannel}.`, flags: 64 });
       logger.info('Avis', `Nouvel avis laissé par ${interaction.user.tag}`);
     } catch (error) {
       logger.error('Avis', `Erreur lors de l'envoi de l'avis: ${error.message}`);
-      await interaction.reply({ content: `❌ Erreur: ${error.message}`, ephemeral: true });
+      await interaction.reply({ content: `❌ Erreur: ${error.message}`, flags: 64 });
     }
   }
 };

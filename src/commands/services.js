@@ -24,7 +24,7 @@ const command = new SlashCommandBuilder()
  */
 async function execute(interaction) {
   try {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
 
     let services = SERVICES;
 

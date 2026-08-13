@@ -68,7 +68,7 @@ async function cacheGuildInvites(guild) {
  */
 function registerInviteHandlers(client) {
   // Cache invites when bot is ready
-  client.on('ready', async () => {
+  client.on('clientReady', async () => {
     for (const [id, guild] of client.guilds.cache) {
       await cacheGuildInvites(guild);
     }

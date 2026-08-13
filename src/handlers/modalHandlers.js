@@ -57,14 +57,14 @@ function registerModalHandlers(client) {
             
             return await interaction.reply({
               content: '✅ Thank you! Your suggestion has been successfully submitted.',
-              ephemeral: true
+              flags: 64
             });
           }
         } catch (err) {
           logger.error('ModalHandler', 'Failed to send suggestion', { error: err.message });
           return await interaction.reply({
             content: '❌ Failed to submit your suggestion. Please try again later.',
-            ephemeral: true
+            flags: 64
           });
         }
       }
@@ -106,14 +106,14 @@ function registerModalHandlers(client) {
             
             return await interaction.reply({
               content: '✅ Announcement successfully sent!',
-              ephemeral: true
+              flags: 64
             });
           }
         } catch (err) {
           logger.error('ModalHandler', 'Failed to send announcement', { error: err.message });
           return await interaction.reply({
             content: '❌ Failed to send announcement. Please check channel permissions.',
-            ephemeral: true
+            flags: 64
           });
         }
       }
@@ -370,7 +370,7 @@ function registerModalHandlers(client) {
       try {
         await interaction.reply({
           content: '❌ An error occurred while processing your request.',
-          ephemeral: true
+          flags: 64
         });
       } catch (e) {
         // Ignore reply errors

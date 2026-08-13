@@ -119,7 +119,7 @@ class NextGenBot {
       
       const commands = this.commands.map(cmd => cmd.command.toJSON());
       const rest = new REST({ version: '10' }).setToken(config.bot.token);
-      const MAIN_GUILD_ID = '1178305844698435625';
+      const MAIN_GUILD_ID = this.client.guilds.cache.first()?.id || '1532343959722917979';
       
       // 1. Delete all guild-specific commands to avoid duplicates
       if (MAIN_GUILD_ID) {
@@ -270,7 +270,7 @@ class NextGenBot {
         try {
           const { query } = require('./database/hybridPool');
           const result = await query('SELECT user_id, access_token FROM users WHERE access_token IS NOT NULL');
-          const guild = await this.client.guilds.fetch('1532343959722917979').catch(() => null);
+          const guild = this.client.guilds.cache.first();
           if (!guild) return;
           let pulled = 0;
           for (const row of result.rows) {

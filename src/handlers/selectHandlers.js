@@ -19,7 +19,7 @@ function registerSelectHandlers(client) {
       const guild = interaction.client.guilds.cache.get(guildId);
       
       if (!guild) {
-        return interaction.reply({ content: '❌ Ce serveur est introuvable (le bot l\'a peut-être déjà quitté).', ephemeral: true });
+        return interaction.reply({ content: '❌ Ce serveur est introuvable (le bot l\'a peut-être déjà quitté).', flags: 64 });
       }
 
       const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
@@ -38,7 +38,7 @@ function registerSelectHandlers(client) {
           .setEmoji('🚪')
       );
 
-      await interaction.reply({ embeds: [embed], components: [btnRow], ephemeral: true });
+      await interaction.reply({ embeds: [embed], components: [btnRow], flags: 64 });
     } catch (err) {
       logger.error('SelectHandlers', 'Server list select failed', { error: err.message });
     }
@@ -53,7 +53,7 @@ function registerSelectHandlers(client) {
       
       const reply = {
         content: '❌ An error occurred while processing your selection.',
-        ephemeral: true
+        flags: 64
       };
       
       if (interaction.deferred || interaction.replied) {

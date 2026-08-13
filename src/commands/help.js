@@ -70,13 +70,13 @@ async function execute(interaction) {
 
     await interaction.reply({
       embeds: [embed],
-      ephemeral: true
+      flags: 64
     });
   } catch (error) {
     logger.error('Command', 'Error in help command', { error: error.message });
     await interaction.reply({
       content: '❌ An error occurred while displaying help.',
-      ephemeral: true
+      flags: 64
     });
   }
 }

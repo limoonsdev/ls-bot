@@ -33,7 +33,7 @@ async function execute(interaction) {
   
   const msDuration = parseTime(durationStr);
   if (!msDuration) {
-    return interaction.reply({ content: '❌ Invalid duration format (e.g., 1m, 1h, 24h).', ephemeral: true });
+    return interaction.reply({ content: '❌ Invalid duration format (e.g., 1m, 1h, 24h).', flags: 64 });
   }
 
   const endTime = Math.floor((Date.now() + msDuration) / 1000);
@@ -54,7 +54,7 @@ async function execute(interaction) {
     .setTimestamp();
     
   const pingText = pingRole ? `<@&${pingRole.id}>` : '';
-  const message = await interaction.reply({ content: `🎉 **NEW GIVEAWAY!** ${pingText}`, embeds: [embed], fetchReply: true });
+  const message = await interaction.reply({ content: `🎉 **NEW GIVEAWAY!** ${pingText}`, embeds: [embed], withResponse: true });
   await message.react('🎉');
 
   // Wait for the giveaway to end

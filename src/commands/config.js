@@ -36,7 +36,7 @@ async function execute(interaction) {
   if (!isAdmin(interaction.member)) {
     return await interaction.reply({
       content: '❌ You need Administrator permission to use this command.',
-      ephemeral: true
+      flags: 64
     });
   }
 
@@ -143,7 +143,7 @@ async function showConfigMenu(interaction, isUpdate = false) {
   if (isUpdate) {
     await interaction.update({ embeds: [embed], components: [row] });
   } else {
-    await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+    await interaction.reply({ embeds: [embed], components: [row], flags: 64 });
   }
 }
 
@@ -551,7 +551,7 @@ async function toggleConfigSetting(interaction, settingKey) {
   
   await interaction.reply({
     content: `✅ **${settingKey.replace('_', ' ')}** has been ${newValue ? 'enabled' : 'disabled'}.`,
-    ephemeral: true
+    flags: 64
   });
   
   // Refresh menu
@@ -572,7 +572,7 @@ async function handleModalSubmit(interaction) {
     if (!ms) {
       return await interaction.reply({
         content: '❌ Invalid time format. Use: 30s, 1m, 1h, etc.',
-        ephemeral: true
+        flags: 64
       });
     }
 
@@ -581,7 +581,7 @@ async function handleModalSubmit(interaction) {
 
     await interaction.reply({
       content: `✅ ${tier === 'free' ? 'Free' : 'Premium'} cooldown set to **${formatTime(ms)}**`,
-      ephemeral: true
+      flags: 64
     });
 
     logger.info('Config', `Cooldown updated: ${tier} = ${formatTime(ms)}`, {
@@ -594,7 +594,7 @@ async function handleModalSubmit(interaction) {
     if (isNaN(value) || value < -1) {
       return await interaction.reply({
         content: '❌ Invalid number. Use a positive number or 0 for unlimited.',
-        ephemeral: true
+        flags: 64
       });
     }
 
@@ -603,7 +603,7 @@ async function handleModalSubmit(interaction) {
 
     await interaction.reply({
       content: `✅ ${tier === 'free' ? 'Free' : 'Premium'} daily limit set to **${value}** ${value === 0 ? '(unlimited)' : 'generations/day'}`,
-      ephemeral: true
+      flags: 64
     });
 
     logger.info('Config', `Daily limit updated: ${tier} = ${value}`, {
@@ -613,13 +613,13 @@ async function handleModalSubmit(interaction) {
   } else if (type === 'role') {
     const value = interaction.fields.getTextInputValue('role_id_value');
     if (!/^\d{17,20}$/.test(value)) {
-      return await interaction.reply({ content: '❌ Invalid Role ID.', ephemeral: true });
+      return await interaction.reply({ content: '❌ Invalid Role ID.', flags: 64 });
     }
     let key = `role_${tier}`;
     if (tier === 'verified') key = 'verified_role';
     
     await updateGuildConfig(interaction.guild.id, { [key]: value });
-    await interaction.reply({ content: '✅ Role set successfully!', ephemeral: true });
+    await interaction.reply({ content: '✅ Role set successfully!', flags: 64 });
   } else if (type === 'cd' && tier === 'role') {
     const roleId = interaction.customId.split('_')[4];
     const value = interaction.fields.getTextInputValue('cooldown_value');
@@ -629,7 +629,7 @@ async function handleModalSubmit(interaction) {
     if (ms === null) {
       return await interaction.reply({
         content: '❌ Invalid time format. Use: 30s, 1m, 1h, etc.',
-        ephemeral: true
+        flags: 64
       });
     }
 
@@ -648,16 +648,16 @@ async function handleModalSubmit(interaction) {
     
     await interaction.reply({
       content: ms === 0 ? `✅ Custom cooldown removed for <@&${roleId}>` : `✅ Custom cooldown for <@&${roleId}> set to **${formatTime(ms)}**`,
-      ephemeral: true
+      flags: 64
     });
   } else if (type === 'channel') {
     const value = interaction.fields.getTextInputValue('channel_id_value');
     if (!/^\d{17,20}$/.test(value)) {
-      return await interaction.reply({ content: '❌ Invalid Channel ID.', ephemeral: true });
+      return await interaction.reply({ content: '❌ Invalid Channel ID.', flags: 64 });
     }
     const key = 'log_channel'; // since logs is the only one for now
     await updateGuildConfig(interaction.guild.id, { [key]: value });
-    await interaction.reply({ content: '✅ Channel set successfully!', ephemeral: true });
+    await interaction.reply({ content: '✅ Channel set successfully!', flags: 64 });
   }
 }
 
@@ -737,7 +737,7 @@ async function handleConfigButton(interaction) {
   if (customId === 'config_cooldown_clear') {
     const { updateGuildConfig } = require('../database/models');
     await updateGuildConfig(interaction.guild.id, { cooldown_roles: {} });
-    await interaction.reply({ content: '✅ All custom role cooldowns cleared.', ephemeral: true });
+    await interaction.reply({ content: '✅ All custom role cooldowns cleared.', flags: 64 });
     return;
   }
   if (customId === 'config_limit_free') return await showLimitModal(interaction, 'free');
@@ -754,7 +754,7 @@ async function handleConfigButton(interaction) {
   
   if (customId === 'config_back') return await showConfigMenu(interaction, true);
   
-  await interaction.reply({ content: '⚙️ This setting is coming soon or handled elsewhere.', ephemeral: true });
+  await interaction.reply({ content: '⚙️ This setting is coming soon or handled elsewhere.', flags: 64 });
 }
 
 

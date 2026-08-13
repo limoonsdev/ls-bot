@@ -78,7 +78,7 @@ async function handleInteraction(interaction) {
       if (interaction.replied) {
         await interaction.followUp({ 
           content: '❌ An error occurred while processing your request.',
-          ephemeral: true 
+          flags: 64 
         });
       } else if (interaction.deferred) {
         await interaction.editReply({ 
@@ -87,7 +87,7 @@ async function handleInteraction(interaction) {
       } else {
         await interaction.reply({ 
           content: '❌ An error occurred while processing your request.',
-          ephemeral: true 
+          flags: 64 
         });
       }
     } catch (replyError) {
@@ -108,7 +108,7 @@ async function handleSlashCommand(interaction) {
     logger.warn('Interaction', `Command not found: ${interaction.commandName}`);
     await interaction.reply({ 
       content: '❌ Command not found.',
-      ephemeral: true 
+      flags: 64 
     });
     return;
   }
@@ -129,9 +129,9 @@ async function handleSlashCommand(interaction) {
     
     try {
       if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({ content: errorMessage, ephemeral: true });
+        await interaction.followUp({ content: errorMessage, flags: 64 });
       } else {
-        await interaction.reply({ content: errorMessage, ephemeral: true });
+        await interaction.reply({ content: errorMessage, flags: 64 });
       }
     } catch (replyError) {
       logger.error('Interaction', 'Failed to send command error', { 
@@ -220,12 +220,12 @@ async function handleSelectMenu(interaction) {
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp({ 
           content: '❌ An error occurred.',
-          ephemeral: true 
+          flags: 64 
         });
       } else {
         await interaction.reply({ 
           content: '❌ An error occurred.',
-          ephemeral: true 
+          flags: 64 
         });
       }
     } catch (replyError) {
@@ -261,12 +261,12 @@ async function handleRoleSelectMenu(interaction) {
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp({ 
           content: '❌ An error occurred.',
-          ephemeral: true 
+          flags: 64 
         });
       } else {
         await interaction.reply({ 
           content: '❌ An error occurred.',
-          ephemeral: true 
+          flags: 64 
         });
       }
     } catch (replyError) {
@@ -309,12 +309,12 @@ async function handleModalSubmit(interaction) {
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp({ 
           content: '❌ An error occurred.',
-          ephemeral: true 
+          flags: 64 
         });
       } else {
         await interaction.reply({ 
           content: '❌ An error occurred.',
-          ephemeral: true 
+          flags: 64 
         });
       }
     } catch (replyError) {

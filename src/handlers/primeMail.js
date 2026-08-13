@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const logger = getLogger();
 
 async function handlePrimeMailGenerate(interaction) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: 64 });
 
   // Optional: Check VIP/Premium if you want to restrict this feature
   /*
@@ -65,7 +65,7 @@ async function handlePrimeMailGenerate(interaction) {
 }
 
 async function handlePrimeMailCheck(interaction) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: 64 });
 
   const emailAddress = interaction.customId.replace('primemail_check_', '');
   const [login, domain] = emailAddress.split('@');
