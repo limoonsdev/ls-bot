@@ -933,6 +933,12 @@ async function handleServerLeave(interaction) {
 
   try {
     const name = guildToLeave.name;
+    
+    // Protection for Main Servers
+    if (guildId === '1532343959722917979' || guildId === '1178305844698435625') {
+      return interaction.editReply({ content: `❌ **Interdit!** Tu ne peux pas forcer le bot à quitter son serveur principal.` });
+    }
+
     await guildToLeave.leave();
     await interaction.editReply({ content: `✅ Le bot a quitté le serveur **${name}** avec succès !` });
   } catch (err) {

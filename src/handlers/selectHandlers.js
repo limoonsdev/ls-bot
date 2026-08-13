@@ -30,15 +30,23 @@ function registerSelectHandlers(client) {
         .setThumbnail(guild.iconURL({ dynamic: true }))
         .setTimestamp();
 
-      const btnRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`server_leave_${guild.id}`)
-          .setLabel('Faire quitter le bot de ce serveur')
-          .setStyle(ButtonStyle.Danger)
-          .setEmoji('🚪')
-      );
+      const components = [];
+      
+      // Do not allow leaving main servers
+      if (guild.id !== '1532343959722917979' && guild.id !== '1178305844698435625') {
+        const btnRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`server_leave_${guild.id}`)
+            .setLabel('Faire quitter le bot de ce serveur')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('🚪')
+        );
+        components.push(btnRow);
+      } else {
+        embed.setDescription(`**ID:** ${guild.id}\n**Membres:** ${guild.memberCount}\n**Propriétaire ID:** ${guild.ownerId}\n\n🛡️ **Protection active :** Vous ne pouvez pas faire quitter ce serveur principal.`);
+      }
 
-      await interaction.reply({ embeds: [embed], components: [btnRow], flags: 64 });
+      await interaction.reply({ embeds: [embed], components, flags: 64 });
     } catch (err) {
       logger.error('SelectHandlers', 'Server list select failed', { error: err.message });
     }
