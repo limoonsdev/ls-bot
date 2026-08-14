@@ -3,321 +3,675 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  EmbedBuilder,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  EmbedBuilder
+  StringSelectMenuBuilder,
+  PermissionsBitField,
+  ChannelType,
 } = require("discord.js");
-const os = require("os");
 
-const ADMIN_IDS = new Set([
-  "1178305844698435625",
-  "1523717252988403873"
-]);
+/* =========================================================
+   CONFIGURACIÓN
+========================================================= */
 
-const API_BASE_URL = (
-  process.env.API_BASE_URL ||
-  process.env.API_URL ||
-  "https://primegen.eu"
-).replace(/\/$/, "");
+const AUTHORIZED_ADMIN_ID = "1523717252988403873";
 
-const API_KEY = process.env.INTERNAL_API_KEY || "";
+/*
+ * API DE TU WEB
+ *
+ * Ejemplo:
+ * API_BASE_URL=https://api.primegen.eu
+ *
+ * Si no la configuras, Overview sigue funcionando con
+ * información real de Discord y Stocks/Tickets mostrarán
+ * que la API no está configurada.
+ */
+const API_BASE_URL = (process.env.API_BASE_URL || "").replace(/\/+$/, "");
+
+/*
+ * Si tu API necesita una clave:
+ *
+ * API_ADMIN_KEY=PRIMEGEN_MASTER_SECRET_2026
+ *
+ * El bot la enviará como Bearer token.
+ */
+const API_ADMIN_KEY = process.env.API_ADMIN_KEY || "";
+
+
+/* =========================================================
+   COMANDO
+========================================================= */
 
 const command = new SlashCommandBuilder()
   .setName("announce")
-  .setDescription("⚡ Ouvrir le panneau d'administration PrimeGen");
+  .setDescription("🛡️ Abrir el panel de administración")
+  .setDMPermission(false);
 
-function isAdmin(userId) {
-  return ADMIN_IDS.has(String(userId));
+
+/* =========================================================
+   UTILIDADES
+========================================================= */
+
+function isAuthorized(interaction) {
+  return interaction.user?.id === AUTHORIZED_ADMIN_ID;
 }
 
-/*
-|--------------------------------------------------------------------------
-| UTILIDADES
-|--------------------------------------------------------------------------
-*/
-
-function formatUptime(seconds) {
-  seconds = Math.floor(seconds);
-
-  const days = Math.floor(seconds / 86400);
-  seconds %= 86400;
-
-  const hours = Math.floor(seconds / 3600);
-  seconds %= 3600;
-
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-
-  const parts = [];
-
-  if (days) parts.push(`${days}j`);
-  if (hours) parts.push(`${hours}h`);
-  if (minutes) parts.push(`${minutes}m`);
-  if (secs || !parts.length) parts.push(`${secs}s`);
-
-  return parts.join(" ");
+function formatNumber(number) {
+  return Number(number || 0).toLocaleString("es-ES");
 }
 
-function formatBytes(bytes) {
-  if (!Number.isFinite(bytes) || bytes <= 0) {
-    return "0 MB";
-  }
+function truncate(text, max = 1000) {
+  if (!text) return "";
+  text = String(text);
 
-  const units = ["B", "KB", "MB", "GB", "TB"];
+  if (text.length <= max) return text;
 
-  const i = Math.min(
-    Math.floor(Math.log(bytes) / Math.log(1024)),
-    units.length - 1
-  );
-
-  return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
+  return `${text.slice(0, max - 3)}...`;
 }
 
-function getCpuUsage() {
-  const cpus = os.cpus();
-
-  if (!cpus?.length) {
-    return "N/A";
+function safeDate(date) {
+  try {
+    return new Date(date).toLocaleString("es-ES");
+  } catch {
+    return "Desconocida";
   }
-
-  let idle = 0;
-  let total = 0;
-
-  for (const cpu of cpus) {
-    for (const type in cpu.times) {
-      total += cpu.times[type];
-    }
-
-    idle += cpu.times.idle;
-  }
-
-  if (!total) {
-    return "N/A";
-  }
-
-  const usage = 100 - (idle / total) * 100;
-
-  return `${Math.max(0, usage).toFixed(1)}%`;
 }
 
-async function apiFetch(path, options = {}) {
+function getTierEmoji(tier) {
+  const value = String(tier || "").toLowerCase();
+
+  if (value === "prime") return "👑";
+  if (value === "premium") return "💎";
+  if (value === "gold") return "🥇";
+  if (value === "silver") return "🥈";
+  if (value === "bronze") return "🥉";
+
+  return "📦";
+}
+
+
+/* =========================================================
+   API
+========================================================= */
+
+async function apiRequest(path, options = {}) {
+  if (!API_BASE_URL) {
+    return {
+      ok: false,
+      configured: false,
+      data: null,
+      error: "API_BASE_URL no está configurada.",
+    };
+  }
+
   const controller = new AbortController();
-
-  const timeout = setTimeout(() => {
-    controller.abort();
-  }, 5000);
+  const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
     const headers = {
       Accept: "application/json",
-      ...(options.headers || {})
+      ...(options.headers || {}),
     };
 
-    if (API_KEY) {
-      headers["X-Internal-Key"] = API_KEY;
+    if (API_ADMIN_KEY) {
+      headers.Authorization = `Bearer ${API_ADMIN_KEY}`;
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}${path}`,
-      {
-        ...options,
-        headers,
-        signal: controller.signal
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`API ${response.status}`);
+    if (options.body && !headers["Content-Type"]) {
+      headers["Content-Type"] = "application/json";
     }
 
-    return await response.json();
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+
+    const text = await response.text();
+
+    let data = null;
+
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
+
+    return {
+      ok: response.ok,
+      configured: true,
+      status: response.status,
+      data,
+      error: response.ok ? null : `HTTP ${response.status}`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      configured: true,
+      data: null,
+      error:
+        error.name === "AbortError"
+          ? "La API tardó demasiado en responder."
+          : error.message,
+    };
   } finally {
     clearTimeout(timeout);
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| PANEL
-|--------------------------------------------------------------------------
-*/
 
-function buildPanel(client) {
-  const guildCount = client.guilds.cache.size;
+/* =========================================================
+   EMBED BASE
+========================================================= */
 
-  let memberCount = 0;
-
-  for (const guild of client.guilds.cache.values()) {
-    memberCount += guild.memberCount || 0;
-  }
-
-  const embed = new EmbedBuilder()
+function createBaseEmbed(title, description = "") {
+  return new EmbedBuilder()
     .setColor(0xff1744)
-    .setTitle("⚡ PrimeGen V2 — Admin Control Center")
-    .setDescription(
-      [
-        "Bienvenue dans le centre de contrôle de PrimeGen.",
-        "",
-        "Toutes les informations affichées par le panneau sont récupérées",
-        "depuis le bot, l'API et les services configurés.",
-        "",
-        "🔐 **Accès administrateur vérifié par ID Discord.**"
-      ].join("\n")
-    )
-    .addFields(
-      {
-        name: "🤖 Bot",
-        value: "🟢 En ligne",
-        inline: true
-      },
-      {
-        name: "⚡ Ping",
-        value: `${client.ws.ping} ms`,
-        inline: true
-      },
-      {
-        name: "🌐 Serveurs",
-        value: guildCount.toLocaleString(),
-        inline: true
-      },
-      {
-        name: "👥 Membres",
-        value: memberCount.toLocaleString(),
-        inline: true
-      },
-      {
-        name: "⏱️ Uptime",
-        value: formatUptime(process.uptime()),
-        inline: true
-      },
-      {
-        name: "🟢 Node.js",
-        value: process.version,
-        inline: true
-      }
-    )
+    .setTitle(title)
+    .setDescription(description)
     .setFooter({
-      text: `PrimeGen V2 • ${new Date().toLocaleString("fr-FR")}`
+      text: "PrimeGen • Panel administrativo",
     })
     .setTimestamp();
+}
 
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("pg_admin_overview")
-      .setLabel("Overview")
-      .setEmoji("📊")
-      .setStyle(ButtonStyle.Primary),
 
-    new ButtonBuilder()
-      .setCustomId("pg_admin_stock")
-      .setLabel("Stocks")
-      .setEmoji("📦")
-      .setStyle(ButtonStyle.Secondary),
+/* =========================================================
+   BOTONES PRINCIPALES
+========================================================= */
 
-    new ButtonBuilder()
-      .setCustomId("pg_admin_users")
-      .setLabel("Users")
-      .setEmoji("👥")
-      .setStyle(ButtonStyle.Secondary),
+function createMainButtons() {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("admin_overview")
+        .setLabel("Overview")
+        .setEmoji("📊")
+        .setStyle(ButtonStyle.Primary),
 
-    new ButtonBuilder()
-      .setCustomId("pg_admin_tickets")
-      .setLabel("Tickets")
-      .setEmoji("🎫")
-      .setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder()
+        .setCustomId("admin_stocks")
+        .setLabel("Stocks")
+        .setEmoji("📦")
+        .setStyle(ButtonStyle.Secondary),
+
+      new ButtonBuilder()
+        .setCustomId("admin_users")
+        .setLabel("Users")
+        .setEmoji("👥")
+        .setStyle(ButtonStyle.Secondary)
+    ),
+
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("admin_tickets")
+        .setLabel("Tickets")
+        .setEmoji("🎫")
+        .setStyle(ButtonStyle.Secondary),
+
+      new ButtonBuilder()
+        .setCustomId("admin_config")
+        .setLabel("Configuration")
+        .setEmoji("⚙️")
+        .setStyle(ButtonStyle.Secondary),
+
+      new ButtonBuilder()
+        .setCustomId("admin_announce")
+        .setLabel("Announce")
+        .setEmoji("📢")
+        .setStyle(ButtonStyle.Success),
+
+      new ButtonBuilder()
+        .setCustomId("admin_refresh")
+        .setLabel("Actualizar")
+        .setEmoji("🔄")
+        .setStyle(ButtonStyle.Success)
+    ),
+  ];
+}
+
+
+/* =========================================================
+   OVERVIEW
+   INFORMACIÓN REAL DE DISCORD
+========================================================= */
+
+async function renderOverview(interaction) {
+  const guild = interaction.guild;
+
+  if (!guild) {
+    return {
+      embeds: [
+        createBaseEmbed(
+          "📊 Overview",
+          "Este panel solo funciona dentro de un servidor."
+        ),
+      ],
+      components: createMainButtons(),
+    };
+  }
+
+  try {
+    await guild.members.fetch();
+
+    const members = guild.members.cache;
+
+    const totalMembers = members.size;
+    const humans = members.filter(
+      member => !member.user.bot
+    ).size;
+
+    const bots = members.filter(
+      member => member.user.bot
+    ).size;
+
+    const online = members.filter(
+      member =>
+        member.presence?.status &&
+        member.presence.status !== "offline"
+    ).size;
+
+    const textChannels = guild.channels.cache.filter(
+      channel => channel.type === ChannelType.GuildText
+    ).size;
+
+    const voiceChannels = guild.channels.cache.filter(
+      channel => channel.type === ChannelType.GuildVoice
+    ).size;
+
+    const categories = guild.channels.cache.filter(
+      channel => channel.type === ChannelType.GuildCategory
+    ).size;
+
+    const roles = guild.roles.cache.size - 1;
+
+    const owner = await guild.fetchOwner().catch(() => null);
+
+    const embed = createBaseEmbed(
+      "📊 Panel de Administración",
+      `Información real de **${guild.name}**`
+    );
+
+    embed.addFields(
+      {
+        name: "👥 Miembros",
+        value:
+          `**Total:** ${formatNumber(totalMembers)}\n` +
+          `**Usuarios:** ${formatNumber(humans)}\n` +
+          `**Bots:** ${formatNumber(bots)}\n` +
+          `**Activos:** ${formatNumber(online)}`,
+        inline: true,
+      },
+      {
+        name: "📁 Canales",
+        value:
+          `**Texto:** ${formatNumber(textChannels)}\n` +
+          `**Voz:** ${formatNumber(voiceChannels)}\n` +
+          `**Categorías:** ${formatNumber(categories)}`,
+        inline: true,
+      },
+      {
+        name: "🛡️ Servidor",
+        value:
+          `**ID:** \`${guild.id}\`\n` +
+          `**Owner:** ${owner ? `<@${owner.id}>` : "Desconocido"}\n` +
+          `**Roles:** ${formatNumber(roles)}`,
+        inline: true,
+      },
+      {
+        name: "🤖 Bot",
+        value:
+          `**Estado:** 🟢 Online\n` +
+          `**Ping:** ${interaction.client.ws.ping}ms`,
+        inline: true,
+      },
+      {
+        name: "🔐 Seguridad",
+        value:
+          `**Administrador:** <@${AUTHORIZED_ADMIN_ID}>\n` +
+          `**Tu ID:** \`${interaction.user.id}\`\n` +
+          `**Autorizado:** ✅`,
+        inline: true,
+      }
+    );
+
+    if (guild.iconURL()) {
+      embed.setThumbnail(guild.iconURL({ size: 256 }));
+    }
+
+    return {
+      embeds: [embed],
+      components: createMainButtons(),
+    };
+  } catch (error) {
+    console.error("Overview error:", error);
+
+    return {
+      embeds: [
+        createBaseEmbed(
+          "❌ Error",
+          "No se pudo obtener la información del servidor."
+        ),
+      ],
+      components: createMainButtons(),
+    };
+  }
+}
+
+
+/* =========================================================
+   STOCKS
+   DATOS REALES DE LA API
+========================================================= */
+
+async function renderStocks(interaction) {
+  const result = await apiRequest("/api-bot/services/stock");
+
+  if (!result.ok) {
+    const reason = result.configured
+      ? result.error
+      : "Configura API_BASE_URL en el .env.";
+
+    return {
+      embeds: [
+        createBaseEmbed(
+          "📦 Stocks",
+          `No puedo mostrar stocks falsos. La fuente de datos real no está disponible.\n\n**Motivo:** ${reason}`
+        ),
+      ],
+      components: createMainButtons(),
+    };
+  }
+
+  const services = Array.isArray(result.data)
+    ? result.data
+    : Array.isArray(result.data?.services)
+      ? result.data.services
+      : [];
+
+  const totalStock = services.reduce(
+    (sum, service) => sum + Number(service.stock || 0),
+    0
   );
 
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("pg_admin_config")
-      .setLabel("Configuration")
-      .setEmoji("⚙️")
-      .setStyle(ButtonStyle.Secondary),
+  const activeServices = services.filter(
+    service => Number(service.stock || 0) > 0
+  ).length;
 
-    new ButtonBuilder()
-      .setCustomId("pg_admin_shop")
-      .setLabel("Boutique")
-      .setEmoji("🛍️")
-      .setStyle(ButtonStyle.Secondary),
-
-    new ButtonBuilder()
-      .setCustomId("pg_admin_system")
-      .setLabel("Système")
-      .setEmoji("🖥️")
-      .setStyle(ButtonStyle.Secondary),
-
-    new ButtonBuilder()
-      .setCustomId("pg_admin_announce")
-      .setLabel("Annonce")
-      .setEmoji("📢")
-      .setStyle(ButtonStyle.Danger)
+  const embed = createBaseEmbed(
+    "📦 Stocks",
+    `Información obtenida directamente de la API.\n\n` +
+    `**Servicios:** ${formatNumber(services.length)}\n` +
+    `**Servicios activos:** ${formatNumber(activeServices)}\n` +
+    `**Stock total:** ${formatNumber(totalStock)}`
   );
 
-  const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("pg_admin_refresh")
-      .setLabel("Actualiser")
-      .setEmoji("🔄")
-      .setStyle(ButtonStyle.Success),
+  if (services.length === 0) {
+    embed.addFields({
+      name: "Información",
+      value: "No hay servicios disponibles.",
+    });
+  } else {
+    const lines = services
+      .slice(0, 15)
+      .map(service => {
+        const stock = Number(service.stock || 0);
+        const status = stock > 0 ? "🟢" : "🔴";
 
-    new ButtonBuilder()
-      .setCustomId("pg_admin_close")
-      .setLabel("Fermer")
-      .setEmoji("✖️")
-      .setStyle(ButtonStyle.Secondary)
+        return (
+          `${status} ${getTierEmoji(service.tier)} ` +
+          `**${truncate(service.label || service.id || "Servicio", 35)}** — ` +
+          `\`${formatNumber(stock)}\``
+        );
+      });
+
+    embed.addFields({
+      name: "Servicios",
+      value: lines.join("\n"),
+    });
+
+    if (services.length > 15) {
+      embed.addFields({
+        name: "Más servicios",
+        value: `Hay ${formatNumber(services.length - 15)} servicios adicionales.`,
+      });
+    }
+  }
+
+  return {
+    embeds: [embed],
+    components: createMainButtons(),
+  };
+}
+
+
+/* =========================================================
+   USERS
+   INFORMACIÓN REAL DEL LEADERBOARD
+========================================================= */
+
+async function renderUsers(interaction) {
+  const result = await apiRequest("/api-bot/leaderboard");
+
+  if (!result.ok) {
+    return {
+      embeds: [
+        createBaseEmbed(
+          "👥 Usuarios",
+          `No se pudo consultar el leaderboard real.\n\n**Motivo:** ${
+            result.configured
+              ? result.error
+              : "API_BASE_URL no configurada."
+          }`
+        ),
+      ],
+      components: createMainButtons(),
+    };
+  }
+
+  const users = Array.isArray(result.data)
+    ? result.data
+    : Array.isArray(result.data?.users)
+      ? result.data.users
+      : [];
+
+  const embed = createBaseEmbed(
+    "👥 Usuarios",
+    `Leaderboard real obtenido desde la API.\n\n` +
+    `**Usuarios registrados en leaderboard:** ${formatNumber(users.length)}`
+  );
+
+  if (!users.length) {
+    embed.addFields({
+      name: "Resultado",
+      value: "No hay usuarios en el leaderboard.",
+    });
+  } else {
+    const lines = users.slice(0, 15).map((user, index) => {
+      const name =
+        user.username ||
+        user.name ||
+        user.userId ||
+        "Usuario desconocido";
+
+      const generated =
+        user.total_combos_generated ??
+        user.generations ??
+        user.total ??
+        0;
+
+      return (
+        `**#${index + 1}** ` +
+        `${truncate(name, 30)} — ` +
+        `\`${formatNumber(generated)}\` generaciones`
+      );
+    });
+
+    embed.addFields({
+      name: "🏆 Ranking",
+      value: lines.join("\n"),
+    });
+  }
+
+  return {
+    embeds: [embed],
+    components: createMainButtons(),
+  };
+}
+
+
+/* =========================================================
+   TICKETS
+   DATOS REALES
+========================================================= */
+
+async function renderTickets(interaction) {
+  const result = await apiRequest("/api-bot/admin/tickets");
+
+  if (!result.ok) {
+    return {
+      embeds: [
+        createBaseEmbed(
+          "🎫 Tickets",
+          `No se pudieron obtener los tickets reales.\n\n**Motivo:** ${
+            result.configured
+              ? result.error
+              : "API_BASE_URL no configurada."
+          }`
+        ),
+      ],
+      components: createMainButtons(),
+    };
+  }
+
+  const tickets = Array.isArray(result.data)
+    ? result.data
+    : Array.isArray(result.data?.tickets)
+      ? result.data.tickets
+      : [];
+
+  const open = tickets.filter(
+    ticket => String(ticket.status).toLowerCase() === "open"
+  ).length;
+
+  const closed = tickets.filter(
+    ticket => String(ticket.status).toLowerCase() === "closed"
+  ).length;
+
+  const embed = createBaseEmbed(
+    "🎫 Tickets",
+    `Información real del sistema de soporte.\n\n` +
+    `**Total:** ${formatNumber(tickets.length)}\n` +
+    `**Abiertos:** ${formatNumber(open)}\n` +
+    `**Cerrados:** ${formatNumber(closed)}`
+  );
+
+  if (!tickets.length) {
+    embed.addFields({
+      name: "Tickets",
+      value: "No existen tickets.",
+    });
+  } else {
+    const lines = tickets.slice(0, 10).map(ticket => {
+      const status =
+        String(ticket.status).toLowerCase() === "open"
+          ? "🟢"
+          : "⚪";
+
+      return (
+        `${status} **${truncate(
+          ticket.subject || "Ticket",
+          35
+        )}**\n` +
+        `Usuario: \`${ticket.userId || "N/A"}\`\n` +
+        `Creado: ${safeDate(ticket.createdAt)}`
+      );
+    });
+
+    embed.addFields({
+      name: "Últimos tickets",
+      value: lines.join("\n\n"),
+    });
+  }
+
+  return {
+    embeds: [embed],
+    components: createMainButtons(),
+  };
+}
+
+
+/* =========================================================
+   CONFIGURACIÓN
+========================================================= */
+
+async function renderConfig(interaction) {
+  const guild = interaction.guild;
+
+  const embed = createBaseEmbed(
+    "⚙️ Configuration",
+    "Configuración y estado del sistema."
+  );
+
+  embed.addFields(
+    {
+      name: "🔐 Administrador autorizado",
+      value:
+        `<@${AUTHORIZED_ADMIN_ID}>\n` +
+        `ID: \`${AUTHORIZED_ADMIN_ID}\``,
+      inline: true,
+    },
+    {
+      name: "🌐 API",
+      value: API_BASE_URL
+        ? `🟢 Configurada\n\`${API_BASE_URL}\``
+        : "🔴 No configurada",
+      inline: true,
+    },
+    {
+      name: "🤖 Discord",
+      value:
+        `Guild: \`${guild?.id || "N/A"}\`\n` +
+        `Ping: \`${interaction.client.ws.ping}ms\``,
+      inline: true,
+    },
+    {
+      name: "🛡️ Permisos",
+      value:
+        "Acceso controlado mediante ID de Discord.\n" +
+        "No depende únicamente del permiso Administrator.",
+    }
   );
 
   return {
     embeds: [embed],
-    components: [row1, row2, row3],
-    ephemeral: true
+    components: createMainButtons(),
   };
 }
 
-/*
-|--------------------------------------------------------------------------
-| /announce
-|--------------------------------------------------------------------------
-*/
 
-async function execute(interaction) {
-  // Vérification AVANT toute opération lente.
-  if (!isAdmin(interaction.user.id)) {
-    return interaction.reply({
-      content:
-        "❌ **No son administradores.**\n\n" +
-        "No tienes autorización para utilizar este panel.",
-      ephemeral: true
-    });
-  }
+/* =========================================================
+   ANNOUNCEMENT MODAL
+========================================================= */
 
-  // Réponse immédiate < 3 secondes.
-  return interaction.reply(buildPanel(interaction.client));
-}
-
-/*
-|--------------------------------------------------------------------------
-| MODAL ANNONCE
-|--------------------------------------------------------------------------
-*/
-
-function createAnnouncementModal() {
+async function showAnnouncementModal(interaction) {
   const modal = new ModalBuilder()
-    .setCustomId("pg_announce_modal")
-    .setTitle("📢 Nouvelle annonce");
+    .setCustomId("admin_announcement_modal")
+    .setTitle("📢 Crear anuncio");
 
   const titleEn = new TextInputBuilder()
     .setCustomId("announce_title_en")
-    .setLabel("Titre — English")
+    .setLabel("Título en inglés")
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder("New update!")
+    .setPlaceholder("New Update!")
     .setRequired(true)
     .setMaxLength(100);
 
   const descEn = new TextInputBuilder()
     .setCustomId("announce_desc_en")
-    .setLabel("Description — English")
+    .setLabel("Descripción en inglés")
     .setStyle(TextInputStyle.Paragraph)
     .setPlaceholder("Write the announcement...")
     .setRequired(true)
@@ -325,7 +679,7 @@ function createAnnouncementModal() {
 
   const titleFr = new TextInputBuilder()
     .setCustomId("announce_title_fr")
-    .setLabel("Titre — Français")
+    .setLabel("Titre en français")
     .setStyle(TextInputStyle.Short)
     .setPlaceholder("Nouvelle mise à jour !")
     .setRequired(true)
@@ -333,9 +687,9 @@ function createAnnouncementModal() {
 
   const descFr = new TextInputBuilder()
     .setCustomId("announce_desc_fr")
-    .setLabel("Description — Français")
+    .setLabel("Description en français")
     .setStyle(TextInputStyle.Paragraph)
-    .setPlaceholder("Écrivez l'annonce...")
+    .setPlaceholder("Écrivez votre annonce...")
     .setRequired(true)
     .setMaxLength(1500);
 
@@ -346,807 +700,386 @@ function createAnnouncementModal() {
     new ActionRowBuilder().addComponents(descFr)
   );
 
-  return modal;
+  await interaction.showModal(modal);
 }
 
-/*
-|--------------------------------------------------------------------------
-| OVERVIEW
-|--------------------------------------------------------------------------
-*/
 
-async function showOverview(interaction) {
-  const client = interaction.client;
+/* =========================================================
+   PUBLICAR ANUNCIO
+========================================================= */
 
-  let memberCount = 0;
+async function processAnnouncement(interaction) {
+  const titleEn = interaction.fields.getTextInputValue(
+    "announce_title_en"
+  );
 
-  for (const guild of client.guilds.cache.values()) {
-    memberCount += guild.memberCount || 0;
-  }
+  const descEn = interaction.fields.getTextInputValue(
+    "announce_desc_en"
+  );
 
-  const memory = process.memoryUsage();
+  const titleFr = interaction.fields.getTextInputValue(
+    "announce_title_fr"
+  );
+
+  const descFr = interaction.fields.getTextInputValue(
+    "announce_desc_fr"
+  );
 
   const embed = new EmbedBuilder()
-    .setColor(0x5865f2)
-    .setTitle("📊 PrimeGen — Overview")
-    .addFields(
-      {
-        name: "🤖 Bot",
-        value: "🟢 Online",
-        inline: true
-      },
-      {
-        name: "📡 Discord Ping",
-        value: `${client.ws.ping} ms`,
-        inline: true
-      },
-      {
-        name: "🌐 Serveurs",
-        value: client.guilds.cache.size.toLocaleString(),
-        inline: true
-      },
-      {
-        name: "👥 Membres",
-        value: memberCount.toLocaleString(),
-        inline: true
-      },
-      {
-        name: "⏱️ Uptime",
-        value: formatUptime(process.uptime()),
-        inline: true
-      },
-      {
-        name: "🧠 RAM",
-        value: formatBytes(memory.rss),
-        inline: true
-      },
-      {
-        name: "📦 Heap",
-        value: formatBytes(memory.heapUsed),
-        inline: true
-      },
-      {
-        name: "🟢 Node",
-        value: process.version,
-        inline: true
-      },
-      {
-        name: "💻 OS",
-        value: `${os.platform()} ${os.arch()}`,
-        inline: true
-      }
+    .setColor(0xff1744)
+    .setTitle("📢 Announcement")
+    .setDescription(
+      `## 🇬🇧 ${titleEn}\n` +
+      `${descEn}\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `## 🇫🇷 ${titleFr}\n` +
+      `${descFr}`
     )
+    .setFooter({
+      text: `Publié par ${interaction.user.username}`,
+    })
     .setTimestamp();
 
-  await interaction.editReply({
-    embeds: [embed],
-    components: buildBackButton()
-  });
-}
+  /*
+   * Por seguridad el bot NO publica automáticamente en un canal
+   * desconocido. Te pide elegir un canal.
+   */
 
-/*
-|--------------------------------------------------------------------------
-| STOCKS RÉELS
-|--------------------------------------------------------------------------
-*/
+  const channels = interaction.guild.channels.cache
+    .filter(
+      channel =>
+        channel.type === ChannelType.GuildText &&
+        channel
+          .permissionsFor(interaction.guild.members.me)
+          ?.has(PermissionsBitField.Flags.SendMessages)
+    )
+    .first(25);
 
-async function showStock(interaction) {
-  try {
-    const data = await apiFetch("/api-bot/services/stock");
+  if (!channels.size) {
+    return interaction.reply({
+      content:
+        "❌ No encuentro ningún canal de texto donde pueda publicar.",
+      ephemeral: true,
+    });
+  }
 
-    const services = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.services)
-        ? data.services
-        : [];
-
-    const total = services.reduce(
-      (sum, service) =>
-        sum + Number(service.stock || 0),
-      0
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("admin_announce_channel")
+    .setPlaceholder("Selecciona dónde publicar el anuncio")
+    .addOptions(
+      channels.map(channel => ({
+        label: truncate(channel.name, 100),
+        value: channel.id,
+        description: `#${channel.name}`,
+      }))
     );
 
-    const active = services.filter(
-      service => Number(service.stock || 0) > 0
-    ).length;
+  /*
+   * Guardamos temporalmente el anuncio en memoria.
+   * Se asocia al usuario para impedir que otra persona
+   * aproveche el selector.
+   */
+  pendingAnnouncements.set(interaction.user.id, {
+    embed,
+    createdAt: Date.now(),
+  });
 
-    const top = [...services]
-      .sort(
-        (a, b) =>
-          Number(b.stock || 0) -
-          Number(a.stock || 0)
-      )
-      .slice(0, 15);
-
-    const lines = top.length
-      ? top.map(service => {
-          const stock = Number(service.stock || 0);
-
-          return `${stock > 0 ? "🟢" : "🔴"} **${service.label || service.id}** — ${stock.toLocaleString()}`;
-        })
-      : ["Aucun service disponible."];
-
-    const embed = new EmbedBuilder()
-      .setColor(0x00ff88)
-      .setTitle("📦 PrimeGen — Stocks réels")
-      .setDescription(lines.join("\n"))
-      .addFields(
-        {
-          name: "📦 Stock total",
-          value: total.toLocaleString(),
-          inline: true
-        },
-        {
-          name: "🟢 Services actifs",
-          value: active.toString(),
-          inline: true
-        },
-        {
-          name: "🔧 Services",
-          value: services.length.toString(),
-          inline: true
-        }
-      )
-      .setFooter({
-        text: "Données récupérées depuis l'API PrimeGen"
-      })
-      .setTimestamp();
-
-    await interaction.editReply({
-      embeds: [embed],
-      components: buildBackButton()
-    });
-
-  } catch (error) {
-    console.error("[ADMIN STOCK]", error);
-
-    await interaction.editReply({
-      content:
-        "⚠️ **Impossible de récupérer les stocks réels.**\n\n" +
-        `API: ${API_BASE_URL}`,
-      embeds: [],
-      components: buildBackButton()
-    });
-  }
-}
-
-/*
-|--------------------------------------------------------------------------
-| USERS RÉELS
-|--------------------------------------------------------------------------
-*/
-
-async function showUsers(interaction) {
-  try {
-    const data = await apiFetch("/api-bot/leaderboard");
-
-    const users = Array.isArray(data)
-      ? data
-      : [];
-
-    const top = users
-      .slice()
-      .sort(
-        (a, b) =>
-          Number(b.total_combos_generated || 0) -
-          Number(a.total_combos_generated || 0)
-      )
-      .slice(0, 15);
-
-    const lines = top.length
-      ? top.map((user, index) => {
-          return (
-            `**#${index + 1}** ` +
-            `${user.username || "Utilisateur"} — ` +
-            `**${Number(
-              user.total_combos_generated || 0
-            ).toLocaleString()}** générations`
-          );
-        })
-      : ["Aucun utilisateur disponible."];
-
-    const embed = new EmbedBuilder()
-      .setColor(0x5865f2)
-      .setTitle("👥 PrimeGen — Utilisateurs")
-      .setDescription(lines.join("\n"))
-      .addFields({
-        name: "👤 Utilisateurs enregistrés",
-        value: users.length.toLocaleString(),
-        inline: true
-      })
-      .setTimestamp();
-
-    await interaction.editReply({
-      embeds: [embed],
-      components: buildBackButton()
-    });
-
-  } catch (error) {
-    console.error("[ADMIN USERS]", error);
-
-    await interaction.editReply({
-      content: "⚠️ Impossible de récupérer les utilisateurs.",
-      embeds: [],
-      components: buildBackButton()
-    });
-  }
-}
-
-/*
-|--------------------------------------------------------------------------
-| TICKETS RÉELS
-|--------------------------------------------------------------------------
-*/
-
-async function showTickets(interaction) {
-  try {
-    const data = await apiFetch("/api-bot/admin/tickets");
-
-    const tickets = Array.isArray(data)
-      ? data
-      : [];
-
-    const open = tickets.filter(
-      t => t.status === "open"
-    ).length;
-
-    const closed = tickets.filter(
-      t => t.status === "closed"
-    ).length;
-
-    const recent = tickets
-      .slice()
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt || 0) -
-          new Date(a.createdAt || 0)
-      )
-      .slice(0, 10);
-
-    const lines = recent.length
-      ? recent.map(ticket => {
-          const status =
-            ticket.status === "open"
-              ? "🟢"
-              : "⚪";
-
-          return (
-            `${status} **${ticket.subject || "Sans sujet"}** ` +
-            `— ${ticket.userId || "Unknown"}`
-          );
-        })
-      : ["Aucun ticket."];
-
-    const embed = new EmbedBuilder()
-      .setColor(0xffa500)
-      .setTitle("🎫 PrimeGen — Tickets")
-      .setDescription(lines.join("\n"))
-      .addFields(
-        {
-          name: "🟢 Ouverts",
-          value: open.toString(),
-          inline: true
-        },
-        {
-          name: "⚪ Fermés",
-          value: closed.toString(),
-          inline: true
-        },
-        {
-          name: "📊 Total",
-          value: tickets.length.toString(),
-          inline: true
-        }
-      )
-      .setTimestamp();
-
-    await interaction.editReply({
-      embeds: [embed],
-      components: buildBackButton()
-    });
-
-  } catch (error) {
-    console.error("[ADMIN TICKETS]", error);
-
-    await interaction.editReply({
-      content: "⚠️ Impossible de récupérer les tickets.",
-      embeds: [],
-      components: buildBackButton()
-    });
-  }
-}
-
-/*
-|--------------------------------------------------------------------------
-| CONFIGURATION RÉELLE
-|--------------------------------------------------------------------------
-*/
-
-async function showConfig(interaction) {
-  try {
-    const [
-      maintenance,
-      staff
-    ] = await Promise.all([
-      apiFetch("/api-bot/admin/maintenance"),
-      apiFetch("/api-bot/admin/staff")
-    ]);
-
-    const maintenanceEnabled =
-      Boolean(maintenance?.maintenance);
-
-    const staffIds =
-      Array.isArray(staff)
-        ? staff
-        : [];
-
-    const embed = new EmbedBuilder()
-      .setColor(
-        maintenanceEnabled
-          ? 0xff1744
-          : 0x00ff88
-      )
-      .setTitle("⚙️ PrimeGen — Configuration")
-      .addFields(
-        {
-          name: "🔧 Maintenance",
-          value: maintenanceEnabled
-            ? "🔴 ACTIVÉE"
-            : "🟢 DÉSACTIVÉE",
-          inline: true
-        },
-        {
-          name: "👑 Staff",
-          value: staffIds.length.toString(),
-          inline: true
-        },
-        {
-          name: "🔐 Administrateurs principaux",
-          value: "2",
-          inline: true
-        },
-        {
-          name: "👑 Admin #1",
-          value: "<@1178305844698435625>",
-          inline: true
-        },
-        {
-          name: "👑 Admin #2",
-          value: "<@1523717252988403873>",
-          inline: true
-        },
-        {
-          name: "🌐 API",
-          value: API_BASE_URL,
-          inline: false
-        }
-      );
-
-    if (maintenance?.message) {
-      embed.addFields({
-        name: "📝 Message maintenance",
-        value: String(
-          maintenance.message
-        ).slice(0, 1000)
-      });
-    }
-
-    await interaction.editReply({
-      embeds: [embed],
-      components: buildBackButton()
-    });
-
-  } catch (error) {
-    console.error("[ADMIN CONFIG]", error);
-
-    await interaction.editReply({
-      content:
-        "⚠️ Impossible de récupérer la configuration.",
-      embeds: [],
-      components: buildBackButton()
-    });
-  }
-}
-
-/*
-|--------------------------------------------------------------------------
-| SHOP RÉELLE
-|--------------------------------------------------------------------------
-*/
-
-async function showShop(interaction) {
-  try {
-    const data = await apiFetch("/api-bot/shop");
-
-    const items = Array.isArray(data)
-      ? data
-      : [];
-
-    const lines = items
-      .slice(0, 20)
-      .map(item => {
-        return (
-          `🛍️ **${item.name || "Article"}** — ` +
-          `${item.price ?? "?"}€`
-        );
-      });
-
-    const embed = new EmbedBuilder()
-      .setColor(0xffd700)
-      .setTitle("🛍️ PrimeGen — Boutique")
-      .setDescription(
-        lines.length
-          ? lines.join("\n")
-          : "Aucun article."
-      )
-      .addFields({
-        name: "📦 Articles",
-        value: items.length.toString(),
-        inline: true
-      })
-      .setTimestamp();
-
-    await interaction.editReply({
-      embeds: [embed],
-      components: buildBackButton()
-    });
-
-  } catch (error) {
-    console.error("[ADMIN SHOP]", error);
-
-    await interaction.editReply({
-      content: "⚠️ Impossible de récupérer la boutique.",
-      embeds: [],
-      components: buildBackButton()
-    });
-  }
-}
-
-/*
-|--------------------------------------------------------------------------
-| SYSTEME RÉEL
-|--------------------------------------------------------------------------
-*/
-
-async function showSystem(interaction) {
-  const memory = process.memoryUsage();
-
-  const embed = new EmbedBuilder()
-    .setColor(0x00bfff)
-    .setTitle("🖥️ PrimeGen — Informations système")
-    .addFields(
-      {
-        name: "⚡ Discord Ping",
-        value: `${interaction.client.ws.ping} ms`,
-        inline: true
-      },
-      {
-        name: "⏱️ Uptime",
-        value: formatUptime(process.uptime()),
-        inline: true
-      },
-      {
-        name: "🧠 RSS",
-        value: formatBytes(memory.rss),
-        inline: true
-      },
-      {
-        name: "📦 Heap utilisé",
-        value: formatBytes(memory.heapUsed),
-        inline: true
-      },
-      {
-        name: "📦 Heap total",
-        value: formatBytes(memory.heapTotal),
-        inline: true
-      },
-      {
-        name: "💾 RAM système",
-        value: formatBytes(os.totalmem()),
-        inline: true
-      },
-      {
-        name: "💾 RAM disponible",
-        value: formatBytes(os.freemem()),
-        inline: true
-      },
-      {
-        name: "🖥️ CPU",
-        value: getCpuUsage(),
-        inline: true
-      },
-      {
-        name: "🧮 CPU cores",
-        value: os.cpus().length.toString(),
-        inline: true
-      },
-      {
-        name: "🟢 Node.js",
-        value: process.version,
-        inline: true
-      },
-      {
-        name: "📦 Discord.js",
-        value: require("discord.js").version,
-        inline: true
-      },
-      {
-        name: "💻 Platform",
-        value: `${os.platform()} ${os.arch()}`,
-        inline: true
-      }
-    )
-    .setTimestamp();
-
-  await interaction.editReply({
-    embeds: [embed],
-    components: buildBackButton()
+  return interaction.reply({
+    content: "📢 Selecciona el canal donde quieres publicar:",
+    components: [
+      new ActionRowBuilder().addComponents(menu),
+    ],
+    ephemeral: true,
   });
 }
 
-/*
-|--------------------------------------------------------------------------
-| BACK
-|--------------------------------------------------------------------------
-*/
 
-function buildBackButton() {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("pg_admin_back")
-        .setLabel("Retour au panneau")
-        .setEmoji("↩️")
-        .setStyle(ButtonStyle.Primary),
+/* =========================================================
+   ALMACENAMIENTO TEMPORAL
+========================================================= */
 
-      new ButtonBuilder()
-        .setCustomId("pg_admin_refresh")
-        .setLabel("Actualiser")
-        .setEmoji("🔄")
-        .setStyle(ButtonStyle.Success),
+const pendingAnnouncements = new Map();
 
-      new ButtonBuilder()
-        .setCustomId("pg_admin_close")
-        .setLabel("Fermer")
-        .setEmoji("✖️")
-        .setStyle(ButtonStyle.Secondary)
-    )
-  ];
-}
 
-/*
-|--------------------------------------------------------------------------
-| INTERACTIONS
-|--------------------------------------------------------------------------
-*/
+/* =========================================================
+   PUBLICAR EN CANAL
+========================================================= */
 
-async function handleInteraction(interaction) {
-  const id = interaction.customId;
+async function publishAnnouncement(interaction) {
+  const pending = pendingAnnouncements.get(interaction.user.id);
+
+  if (!pending) {
+    return interaction.update({
+      content:
+        "❌ Este anuncio ya expiró. Crea uno nuevo.",
+      embeds: [],
+      components: [],
+    });
+  }
+
+  /*
+   * Expiración de seguridad.
+   */
+  if (Date.now() - pending.createdAt > 5 * 60 * 1000) {
+    pendingAnnouncements.delete(interaction.user.id);
+
+    return interaction.update({
+      content:
+        "❌ El anuncio expiró. Crea uno nuevo.",
+      embeds: [],
+      components: [],
+    });
+  }
+
+  const channelId = interaction.values[0];
+
+  const channel = interaction.guild.channels.cache.get(
+    channelId
+  );
+
+  if (!channel || channel.type !== ChannelType.GuildText) {
+    return interaction.update({
+      content: "❌ Canal inválido.",
+      embeds: [],
+      components: [],
+    });
+  }
+
+  const permissions = channel.permissionsFor(
+    interaction.guild.members.me
+  );
 
   if (
-    !id ||
-    (
-      !id.startsWith("pg_admin_") &&
-      id !== "pg_announce_modal"
+    !permissions?.has(
+      PermissionsBitField.Flags.SendMessages
     )
+  ) {
+    return interaction.update({
+      content:
+        "❌ El bot no tiene permiso para enviar mensajes en ese canal.",
+      embeds: [],
+      components: [],
+    });
+  }
+
+  try {
+    await channel.send({
+      embeds: [pending.embed],
+    });
+
+    pendingAnnouncements.delete(interaction.user.id);
+
+    await interaction.update({
+      content:
+        `✅ Anuncio publicado correctamente en ${channel}.`,
+      embeds: [],
+      components: [],
+    });
+  } catch (error) {
+    console.error("Announcement publish error:", error);
+
+    await interaction.update({
+      content:
+        "❌ No se pudo publicar el anuncio.",
+      embeds: [],
+      components: [],
+    });
+  }
+}
+
+
+/* =========================================================
+   MANEJADOR PRINCIPAL
+========================================================= */
+
+async function execute(interaction) {
+  /*
+   * PRIMERA BARRERA DE SEGURIDAD.
+   *
+   * Solamente esta ID puede utilizar /announce.
+   */
+  if (!isAuthorized(interaction)) {
+    return interaction.reply({
+      content:
+        "🚫 **No eres administrador.**\n\n" +
+        "No tienes autorización para utilizar este panel.",
+      ephemeral: true,
+    });
+  }
+
+  /*
+   * Evita el famoso:
+   *
+   * "Application did not respond"
+   *
+   * porque Discord tiene un límite de respuesta.
+   */
+  await interaction.deferReply({
+    ephemeral: true,
+  });
+
+  const panel = await renderOverview(interaction);
+
+  return interaction.editReply(panel);
+}
+
+
+/* =========================================================
+   MANEJADOR DE INTERACCIONES DEL PANEL
+========================================================= */
+
+async function handleInteraction(interaction) {
+  /*
+   * Solo procesamos interacciones del panel.
+   */
+  const id = interaction.customId || "";
+
+  if (
+    !id.startsWith("admin_")
   ) {
     return false;
   }
 
   /*
-   * SECURITY CHECK SUR CHAQUE INTERACTION
+   * SEGUNDA BARRERA DE SEGURIDAD.
+   *
+   * Aunque alguien copie un customId o intente interactuar
+   * manualmente, sigue necesitando la ID autorizada.
    */
-
-  if (!isAdmin(interaction.user.id)) {
+  if (!isAuthorized(interaction)) {
     if (interaction.isRepliable()) {
-      if (
-        interaction.replied ||
-        interaction.deferred
-      ) {
+      if (interaction.deferred || interaction.replied) {
         await interaction.followUp({
-          content: "❌ **No son administradores.**",
-          ephemeral: true
-        });
+          content: "🚫 No eres administrador.",
+          ephemeral: true,
+        }).catch(() => {});
       } else {
         await interaction.reply({
-          content: "❌ **No son administradores.**",
-          ephemeral: true
-        });
+          content: "🚫 No eres administrador.",
+          ephemeral: true,
+        }).catch(() => {});
       }
     }
 
     return true;
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | ANNOUNCE MODAL
-  |--------------------------------------------------------------------------
-  */
+  try {
+    /* ===============================================
+       BOTONES
+    =============================================== */
 
-  if (id === "pg_admin_announce") {
-    await interaction.showModal(
-      createAnnouncementModal()
-    );
+    if (interaction.isButton()) {
+      if (id === "admin_announce") {
+        await showAnnouncementModal(interaction);
+        return true;
+      }
 
-    return true;
-  }
+      await interaction.deferUpdate();
 
-  /*
-  |--------------------------------------------------------------------------
-  | MODAL SUBMIT
-  |--------------------------------------------------------------------------
-  */
+      let panel;
 
-  if (id === "pg_announce_modal") {
-    const titleEn =
-      interaction.fields.getTextInputValue(
-        "announce_title_en"
-      );
+      switch (id) {
+        case "admin_overview":
+          panel = await renderOverview(interaction);
+          break;
 
-    const descEn =
-      interaction.fields.getTextInputValue(
-        "announce_desc_en"
-      );
+        case "admin_stocks":
+          panel = await renderStocks(interaction);
+          break;
 
-    const titleFr =
-      interaction.fields.getTextInputValue(
-        "announce_title_fr"
-      );
+        case "admin_users":
+          panel = await renderUsers(interaction);
+          break;
 
-    const descFr =
-      interaction.fields.getTextInputValue(
-        "announce_desc_fr"
-      );
+        case "admin_tickets":
+          panel = await renderTickets(interaction);
+          break;
 
-    if (
-      !titleEn.trim() ||
-      !descEn.trim() ||
-      !titleFr.trim() ||
-      !descFr.trim()
-    ) {
-      await interaction.reply({
-        content:
-          "❌ Tous les champs sont obligatoires.",
-        ephemeral: true
-      });
+        case "admin_config":
+          panel = await renderConfig(interaction);
+          break;
+
+        case "admin_refresh":
+          panel = await renderOverview(interaction);
+          break;
+
+        default:
+          panel = await renderOverview(interaction);
+          break;
+      }
+
+      await interaction.editReply(panel);
 
       return true;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0xff1744)
-      .setTitle("📢 Aperçu de l'annonce")
-      .addFields(
-        {
-          name: `🇬🇧 ${titleEn}`,
-          value: descEn
-        },
-        {
-          name: `🇫🇷 ${titleFr}`,
-          value: descFr
-        }
-      )
-      .setFooter({
-        text: `Créée par ${interaction.user.tag}`
-      })
-      .setTimestamp();
 
-    await interaction.reply({
-      content:
-        "✅ **Annonce créée.**\n\n" +
-        "⚠️ Elle est actuellement affichée en aperçu privé. " +
-        "Connecte ici ton canal/API d'annonces pour la publication.",
-      embeds: [embed],
-      ephemeral: true
-    });
+    /* ===============================================
+       MODAL
+    =============================================== */
 
-    return true;
-  }
+    if (interaction.isModalSubmit()) {
+      if (id === "admin_announcement_modal") {
+        await processAnnouncement(interaction);
+        return true;
+      }
+    }
 
-  /*
-  |--------------------------------------------------------------------------
-  | ACTIONS
-  |--------------------------------------------------------------------------
-  */
 
-  if (id === "pg_admin_overview") {
-    await interaction.deferReply({
-      ephemeral: true
-    });
+    /* ===============================================
+       SELECT MENU
+    =============================================== */
 
-    await showOverview(interaction);
-    return true;
-  }
+    if (interaction.isStringSelectMenu()) {
+      if (id === "admin_announce_channel") {
+        await publishAnnouncement(interaction);
+        return true;
+      }
+    }
 
-  if (id === "pg_admin_stock") {
-    await interaction.deferReply({
-      ephemeral: true
-    });
+    return false;
 
-    await showStock(interaction);
-    return true;
-  }
-
-  if (id === "pg_admin_users") {
-    await interaction.deferReply({
-      ephemeral: true
-    });
-
-    await showUsers(interaction);
-    return true;
-  }
-
-  if (id === "pg_admin_tickets") {
-    await interaction.deferReply({
-      ephemeral: true
-    });
-
-    await showTickets(interaction);
-    return true;
-  }
-
-  if (id === "pg_admin_config") {
-    await interaction.deferReply({
-      ephemeral: true
-    });
-
-    await showConfig(interaction);
-    return true;
-  }
-
-  if (id === "pg_admin_shop") {
-    await interaction.deferReply({
-      ephemeral: true
-    });
-
-    await showShop(interaction);
-    return true;
-  }
-
-  if (id === "pg_admin_system") {
-    await interaction.deferReply({
-      ephemeral: true
-    });
-
-    await showSystem(interaction);
-    return true;
-  }
-
-  if (id === "pg_admin_back") {
-    await interaction.update(
-      buildPanel(interaction.client)
+  } catch (error) {
+    console.error(
+      "ADMIN PANEL INTERACTION ERROR:",
+      error
     );
 
+    try {
+      if (interaction.deferred) {
+        await interaction.editReply({
+          content:
+            "❌ Se produjo un error interno en el panel.",
+          embeds: [],
+          components: [],
+        });
+      } else if (interaction.replied) {
+        await interaction.followUp({
+          content:
+            "❌ Se produjo un error interno en el panel.",
+          ephemeral: true,
+        });
+      } else {
+        await interaction.reply({
+          content:
+            "❌ Se produjo un error interno en el panel.",
+          ephemeral: true,
+        });
+      }
+    } catch {}
+
     return true;
   }
-
-  if (id === "pg_admin_refresh") {
-    await interaction.update(
-      buildPanel(interaction.client)
-    );
-
-    return true;
-  }
-
-  if (id === "pg_admin_close") {
-    await interaction.update({
-      content:
-        "🔒 **Panneau d'administration fermé.**",
-      embeds: [],
-      components: []
-    });
-
-    return true;
-  }
-
-  return true;
 }
+
+
+/* =========================================================
+   EXPORTS
+========================================================= */
 
 module.exports = {
   command,
   execute,
   handleInteraction,
-  isAdmin,
-  ADMIN_IDS
 };
