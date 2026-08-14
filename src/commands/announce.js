@@ -7,414 +7,122 @@ const {
   TextInputBuilder,
   TextInputStyle,
   EmbedBuilder,
-  PermissionFlagsBits,
+  PermissionsBitField
 } = require("discord.js");
 
 /*
 |--------------------------------------------------------------------------
-| ADMIN SECURITY
+| ADMINISTRADORES
 |--------------------------------------------------------------------------
-|
 | IMPORTANTE:
-| La seguridad real está aquí, NO únicamente en Discord permissions.
-|
+| La autorización se comprueba por ID en el servidor.
+| No dependemos únicamente de permisos de Discord.
+|--------------------------------------------------------------------------
 */
 
 const ADMIN_IDS = new Set([
   "1178305844698435625",
-  "1523717252988403873",
+  "1523717252988403873"
 ]);
-
-const COLORS = {
-  primary: 0xff1744,
-  success: 0x00ff88,
-  warning: 0xffc107,
-  danger: 0xff1744,
-  neutral: 0x2b2d31,
-};
-
-/*
-|--------------------------------------------------------------------------
-| SECURITY
-|--------------------------------------------------------------------------
-*/
 
 function isAdmin(userId) {
   return ADMIN_IDS.has(String(userId));
 }
 
-async function deny(interaction) {
-  const payload = {
-    embeds: [
-      new EmbedBuilder()
-        .setColor(COLORS.danger)
-        .setTitle("🔒 Acceso denegado")
-        .setDescription(
-          "❌ **No son Administradores.**\n\n" +
-          "No tienes autorización para utilizar este panel."
-        )
-        .setFooter({
-          text: "PrimeGen • Security System",
-        })
-        .setTimestamp(),
-    ],
-    ephemeral: true,
-  };
-
-  if (interaction.replied || interaction.deferred) {
-    return interaction.followUp(payload).catch(() => {});
-  }
-
-  return interaction.reply(payload).catch(() => {});
-}
-
-/*
-|--------------------------------------------------------------------------
-| COMMAND
-|--------------------------------------------------------------------------
-*/
-
 const command = new SlashCommandBuilder()
-  .setName("admin")
-  .setDescription("🔐 Open the PrimeGen administration panel")
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator.toString());
-
-/*
-|--------------------------------------------------------------------------
-| ANNOUNCE COMMAND
-|--------------------------------------------------------------------------
-*/
-
-const announceCommand = new SlashCommandBuilder()
   .setName("announce")
-  .setDescription("📢 Create a new bilingual announcement")
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator.toString());
+  .setDescription("📢 Ouvrir le panneau d'administration")
+  // Evita que Discord muestre el comando como restringido únicamente
+  // por permiso Administrator. La comprobación real está abajo.
+  .setDefaultMemberPermissions(null);
 
 /*
 |--------------------------------------------------------------------------
-| MAIN ADMIN PANEL
+| PANEL PRINCIPAL
 |--------------------------------------------------------------------------
 */
 
-function createAdminEmbed() {
-  return new EmbedBuilder()
-    .setColor(COLORS.primary)
-    .setTitle("⚡ PrimeGen • Administration")
+function createAdminPanel() {
+  const embed = new EmbedBuilder()
+    .setColor(0xff1744)
+    .setTitle("⚡ PrimeGen — Administration")
     .setDescription(
-      "Bienvenue dans le **centre d'administration PrimeGen**.\n\n" +
-      "Utilisez les boutons ci-dessous pour gérer les différents systèmes.\n\n" +
-      "🔐 **Accès sécurisé**\n" +
-      "Ce panneau est réservé aux administrateurs autorisés."
+      [
+        "Bienvenue dans le panneau d'administration.",
+        "",
+        "Sélectionnez une action ci-dessous.",
+        "",
+        "🔐 **Accès sécurisé**",
+        "Seuls les administrateurs autorisés peuvent utiliser ce panneau."
+      ].join("\n")
     )
     .addFields(
       {
-        name: "📊 Overview",
-        value: "Statistiques et état général.",
-        inline: true,
+        name: "📢 Annonces",
+        value: "Créer et publier une annonce multilingue.",
+        inline: true
       },
       {
-        name: "📦 Stocks",
-        value: "Gestion des stocks et restocks.",
-        inline: true,
+        name: "🛠️ Système",
+        value: "Consulter l'état du système.",
+        inline: true
       },
       {
-        name: "👥 Utilisateurs",
-        value: "Classement et statistiques.",
-        inline: true,
-      },
-      {
-        name: "🎫 Tickets",
-        value: "Gestion du support.",
-        inline: true,
-      },
-      {
-        name: "⚙️ Configuration",
-        value: "Paramètres du système.",
-        inline: true,
-      },
-      {
-        name: "📢 Announcements",
-        value: "Créer une annonce bilingue.",
-        inline: true,
+        name: "👥 Administration",
+        value: "Gestion des administrateurs autorisés.",
+        inline: true
       }
     )
     .setFooter({
-      text: "PrimeGen Admin Panel • Authorized Access Only",
+      text: "PrimeGen • Admin Panel"
     })
     .setTimestamp();
-}
 
-function createAdminButtons() {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("admin_overview")
-        .setLabel("Overview")
-        .setEmoji("📊")
-        .setStyle(ButtonStyle.Primary),
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("admin_announce")
+      .setLabel("Créer une annonce")
+      .setEmoji("📢")
+      .setStyle(ButtonStyle.Danger),
 
-      new ButtonBuilder()
-        .setCustomId("admin_stocks")
-        .setLabel("Stocks")
-        .setEmoji("📦")
-        .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId("admin_status")
+      .setLabel("Status")
+      .setEmoji("📊")
+      .setStyle(ButtonStyle.Secondary)
+  );
 
-      new ButtonBuilder()
-        .setCustomId("admin_users")
-        .setLabel("Users")
-        .setEmoji("👥")
-        .setStyle(ButtonStyle.Secondary)
-    ),
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("admin_info")
+      .setLabel("Administrateurs")
+      .setEmoji("👑")
+      .setStyle(ButtonStyle.Secondary),
 
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("admin_tickets")
-        .setLabel("Tickets")
-        .setEmoji("🎫")
-        .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId("admin_close")
+      .setLabel("Fermer")
+      .setEmoji("✖️")
+      .setStyle(ButtonStyle.Secondary)
+  );
 
-      new ButtonBuilder()
-        .setCustomId("admin_config")
-        .setLabel("Configuration")
-        .setEmoji("⚙️")
-        .setStyle(ButtonStyle.Secondary),
-
-      new ButtonBuilder()
-        .setCustomId("admin_refresh")
-        .setLabel("Actualiser")
-        .setEmoji("🔄")
-        .setStyle(ButtonStyle.Success)
-    ),
-  ];
+  return {
+    embeds: [embed],
+    components: [row1, row2],
+    ephemeral: true
+  };
 }
 
 /*
 |--------------------------------------------------------------------------
-| OVERVIEW
-|--------------------------------------------------------------------------
-*/
-
-function createOverview() {
-  return new EmbedBuilder()
-    .setColor(COLORS.primary)
-    .setTitle("📊 PrimeGen • Overview")
-    .setDescription("Vue globale de la plateforme.")
-    .addFields(
-      {
-        name: "🟢 API",
-        value: "`Operational`",
-        inline: true,
-      },
-      {
-        name: "🟢 Database",
-        value: "`Operational`",
-        inline: true,
-      },
-      {
-        name: "🟢 Discord",
-        value: "`Operational`",
-        inline: true,
-      },
-      {
-        name: "📦 Stock",
-        value: "`Voir la section Stocks`",
-        inline: true,
-      },
-      {
-        name: "👥 Users",
-        value: "`Voir la section Users`",
-        inline: true,
-      },
-      {
-        name: "🎫 Tickets",
-        value: "`Voir la section Tickets`",
-        inline: true,
-      }
-    )
-    .setFooter({
-      text: "PrimeGen Admin • Overview",
-    })
-    .setTimestamp();
-}
-
-/*
-|--------------------------------------------------------------------------
-| STOCKS
-|--------------------------------------------------------------------------
-*/
-
-function createStocksPanel() {
-  return new EmbedBuilder()
-    .setColor(COLORS.primary)
-    .setTitle("📦 PrimeGen • Stocks")
-    .setDescription(
-      "Gestion des stocks.\n\n" +
-      "Utilisez les boutons ci-dessous pour effectuer les opérations."
-    )
-    .addFields({
-      name: "📊 État",
-      value: "Utilisez votre API/DB pour afficher les stocks réels ici.",
-    })
-    .setFooter({
-      text: "PrimeGen Admin • Stocks",
-    })
-    .setTimestamp();
-}
-
-function createStockButtons() {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("admin_stock_refresh")
-        .setLabel("Actualiser")
-        .setEmoji("🔄")
-        .setStyle(ButtonStyle.Success),
-
-      new ButtonBuilder()
-        .setCustomId("admin_stock_restock")
-        .setLabel("Restock")
-        .setEmoji("📥")
-        .setStyle(ButtonStyle.Primary),
-
-      new ButtonBuilder()
-        .setCustomId("admin_stock_clear")
-        .setLabel("Vider")
-        .setEmoji("🗑️")
-        .setStyle(ButtonStyle.Danger)
-    ),
-
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("admin_home")
-        .setLabel("Retour")
-        .setEmoji("◀️")
-        .setStyle(ButtonStyle.Secondary)
-    ),
-  ];
-}
-
-/*
-|--------------------------------------------------------------------------
-| USERS
-|--------------------------------------------------------------------------
-*/
-
-function createUsersPanel() {
-  return new EmbedBuilder()
-    .setColor(0x4da6ff)
-    .setTitle("👥 PrimeGen • Utilisateurs")
-    .setDescription("Gestion et statistiques utilisateurs.")
-    .addFields(
-      {
-        name: "🏆 Leaderboard",
-        value: "Consultez le classement des utilisateurs.",
-      },
-      {
-        name: "📈 Statistiques",
-        value: "Statistiques globales de génération.",
-      }
-    )
-    .setFooter({
-      text: "PrimeGen Admin • Users",
-    })
-    .setTimestamp();
-}
-
-function createUserButtons() {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("admin_leaderboard")
-        .setLabel("Leaderboard")
-        .setEmoji("🏆")
-        .setStyle(ButtonStyle.Primary),
-
-      new ButtonBuilder()
-        .setCustomId("admin_reset_leaderboard")
-        .setLabel("Reset")
-        .setEmoji("🗑️")
-        .setStyle(ButtonStyle.Danger)
-    ),
-
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("admin_home")
-        .setLabel("Retour")
-        .setEmoji("◀️")
-        .setStyle(ButtonStyle.Secondary)
-    ),
-  ];
-}
-
-/*
-|--------------------------------------------------------------------------
-| TICKETS
-|--------------------------------------------------------------------------
-*/
-
-function createTicketsPanel() {
-  return new EmbedBuilder()
-    .setColor(0xffa000)
-    .setTitle("🎫 PrimeGen • Tickets")
-    .setDescription(
-      "Centre de gestion du support.\n\n" +
-      "Les administrateurs autorisés peuvent gérer les tickets depuis cette interface."
-    )
-    .addFields({
-      name: "📩 Tickets",
-      value: "Utilisez votre système de tickets actuel pour récupérer les tickets réels.",
-    })
-    .setFooter({
-      text: "PrimeGen Admin • Tickets",
-    })
-    .setTimestamp();
-}
-
-/*
-|--------------------------------------------------------------------------
-| CONFIG
-|--------------------------------------------------------------------------
-*/
-
-function createConfigPanel() {
-  return new EmbedBuilder()
-    .setColor(0x7c3aed)
-    .setTitle("⚙️ PrimeGen • Configuration")
-    .setDescription("Configuration administrative.")
-    .addFields(
-      {
-        name: "🔐 Administrateurs",
-        value:
-          "```text\n" +
-          "1178305844698435625\n" +
-          "1523717252988403873\n" +
-          "```",
-      },
-      {
-        name: "🛡️ Sécurité",
-        value:
-          "• ID whitelist\n" +
-          "• Vérification serveur\n" +
-          "• Vérification interactions\n" +
-          "• Réponses éphémères",
-      }
-    )
-    .setFooter({
-      text: "PrimeGen Admin • Configuration",
-    })
-    .setTimestamp();
-}
-
-/*
-|--------------------------------------------------------------------------
-| ANNOUNCE MODAL
+| MODAL ANNOUNCE
 |--------------------------------------------------------------------------
 */
 
 function createAnnouncementModal() {
   const modal = new ModalBuilder()
     .setCustomId("announce_modal")
-    .setTitle("Create Announcement");
+    .setTitle("📢 Create Announcement");
 
   const titleEn = new TextInputBuilder()
     .setCustomId("announce_title_en")
@@ -436,7 +144,7 @@ function createAnnouncementModal() {
     .setCustomId("announce_title_fr")
     .setLabel("Title (French)")
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder("Ex: Nouvelle mise à jour!")
+    .setPlaceholder("Ex: Nouvelle mise à jour !")
     .setRequired(true)
     .setMaxLength(100);
 
@@ -460,202 +168,200 @@ function createAnnouncementModal() {
 
 /*
 |--------------------------------------------------------------------------
-| COMMAND EXECUTION
+| /announce
 |--------------------------------------------------------------------------
 */
 
 async function execute(interaction) {
   /*
-   * CRITICAL:
-   * On vérifie l'ID avant absolument toute action.
+   * SECURITY CHECK
+   * 
+   * Cette vérification se fait côté bot.
+   * Même si quelqu'un essaie de contourner les permissions
+   * de Discord, il ne pourra pas utiliser le panneau.
    */
 
   if (!isAdmin(interaction.user.id)) {
-    return deny(interaction);
-  }
-
-  if (interaction.commandName === "announce") {
-    return interaction.showModal(createAnnouncementModal());
-  }
-
-  if (interaction.commandName === "admin") {
     return interaction.reply({
-      embeds: [createAdminEmbed()],
-      components: createAdminButtons(),
-      ephemeral: true,
+      content:
+        "❌ **Vous n'êtes pas administrateur.**\n\n" +
+        "Vous n'avez pas l'autorisation d'utiliser ce panneau.",
+      ephemeral: true
     });
   }
+
+  return interaction.reply(createAdminPanel());
 }
 
 /*
 |--------------------------------------------------------------------------
-| BUTTON HANDLER
+| INTERACTIONS DU PANEL
 |--------------------------------------------------------------------------
 */
 
-async function handleButton(interaction) {
+async function handleInteraction(interaction) {
   /*
-   * IMPORTANT :
-   * Ne jamais supposer qu'un bouton est sécurisé parce
-   * qu'il était affiché dans un message ephemeral.
+   * On ignore les interactions qui ne viennent pas
+   * de notre système.
+   */
+
+  const customId = interaction.customId;
+
+  if (
+    !customId ||
+    (
+      !customId.startsWith("admin_") &&
+      customId !== "announce_modal"
+    )
+  ) {
+    return false;
+  }
+
+  /*
+   * SECURITY CHECK
+   *
+   * Très important :
+   * on vérifie également l'ID ici.
+   *
+   * Il ne suffit PAS de sécuriser uniquement /announce.
    */
 
   if (!isAdmin(interaction.user.id)) {
-    return deny(interaction);
-  }
-
-  switch (interaction.customId) {
-    case "admin_home":
-    case "admin_refresh":
-      return interaction.update({
-        embeds: [createAdminEmbed()],
-        components: createAdminButtons(),
-      });
-
-    case "admin_overview":
-      return interaction.update({
-        embeds: [createOverview()],
-        components: [
-          new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId("admin_home")
-              .setLabel("Retour")
-              .setEmoji("◀️")
-              .setStyle(ButtonStyle.Secondary),
-
-            new ButtonBuilder()
-              .setCustomId("admin_refresh")
-              .setLabel("Actualiser")
-              .setEmoji("🔄")
-              .setStyle(ButtonStyle.Success)
-          ),
-        ],
-      });
-
-    case "admin_stocks":
-      return interaction.update({
-        embeds: [createStocksPanel()],
-        components: createStockButtons(),
-      });
-
-    case "admin_users":
-      return interaction.update({
-        embeds: [createUsersPanel()],
-        components: createUserButtons(),
-      });
-
-    case "admin_tickets":
-      return interaction.update({
-        embeds: [createTicketsPanel()],
-        components: [
-          new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId("admin_home")
-              .setLabel("Retour")
-              .setEmoji("◀️")
-              .setStyle(ButtonStyle.Secondary)
-          ),
-        ],
-      });
-
-    case "admin_config":
-      return interaction.update({
-        embeds: [createConfigPanel()],
-        components: [
-          new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId("admin_home")
-              .setLabel("Retour")
-              .setEmoji("◀️")
-              .setStyle(ButtonStyle.Secondary)
-          ),
-        ],
-      });
-
-    case "admin_stock_refresh":
-      return interaction.reply({
-        content:
-          "🔄 **Actualisation des stocks...**\n\n" +
-          "Branche ici ta fonction de récupération DB/API.",
-        ephemeral: true,
-      });
-
-    case "admin_stock_restock": {
-      const modal = new ModalBuilder()
-        .setCustomId("admin_restock_modal")
-        .setTitle("📦 Restock");
-
-      const service = new TextInputBuilder()
-        .setCustomId("service")
-        .setLabel("Service ID")
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true)
-        .setMaxLength(100);
-
-      const accounts = new TextInputBuilder()
-        .setCustomId("accounts")
-        .setLabel("Comptes")
-        .setStyle(TextInputStyle.Paragraph)
-        .setPlaceholder("Données à traiter...")
-        .setRequired(true)
-        .setMaxLength(4000);
-
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(service),
-        new ActionRowBuilder().addComponents(accounts)
-      );
-
-      return interaction.showModal(modal);
+    if (interaction.isRepliable()) {
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp({
+          content: "❌ Vous n'êtes pas administrateur.",
+          ephemeral: true
+        });
+      } else {
+        await interaction.reply({
+          content: "❌ Vous n'êtes pas administrateur.",
+          ephemeral: true
+        });
+      }
     }
 
-    case "admin_stock_clear":
-      return interaction.reply({
-        content:
-          "⚠️ **Action protégée.**\n\n" +
-          "Branche ici ton système de confirmation + suppression DB.",
-        ephemeral: true,
-      });
-
-    case "admin_leaderboard":
-      return interaction.reply({
-        content:
-          "🏆 **Leaderboard**\n\n" +
-          "Branche ici ta fonction existante de récupération du leaderboard.",
-        ephemeral: true,
-      });
-
-    case "admin_reset_leaderboard":
-      return interaction.reply({
-        content:
-          "⚠️ **Reset du leaderboard**\n\n" +
-          "Branche ici ton endpoint/fonction de reset avec une confirmation supplémentaire.",
-        ephemeral: true,
-      });
-
-    default:
-      return interaction.reply({
-        content: "❌ Action administrative inconnue.",
-        ephemeral: true,
-      });
+    return true;
   }
-}
 
-/*
-|--------------------------------------------------------------------------
-| MODAL HANDLER
-|--------------------------------------------------------------------------
-*/
-
-async function handleModal(interaction) {
   /*
-   * SECOND SECURITY CHECK
-   */
+  |--------------------------------------------------------------------------
+  | BOUTON : ANNOUNCE
+  |--------------------------------------------------------------------------
+  */
 
-  if (!isAdmin(interaction.user.id)) {
-    return deny(interaction);
+  if (customId === "admin_announce") {
+    await interaction.showModal(createAnnouncementModal());
+    return true;
   }
 
-  if (interaction.customId === "announce_modal") {
+  /*
+  |--------------------------------------------------------------------------
+  | BOUTON : STATUS
+  |--------------------------------------------------------------------------
+  */
+
+  if (customId === "admin_status") {
+    const uptime = process.uptime();
+
+    const days = Math.floor(uptime / 86400);
+    const hours = Math.floor((uptime % 86400) / 3600);
+    const minutes = Math.floor((uptime % 3600) / 60);
+
+    const embed = new EmbedBuilder()
+      .setColor(0x00ff88)
+      .setTitle("📊 PrimeGen — System Status")
+      .addFields(
+        {
+          name: "🤖 Bot",
+          value: "🟢 Opérationnel",
+          inline: true
+        },
+        {
+          name: "⚡ Latence",
+          value: `${interaction.client.ws.ping} ms`,
+          inline: true
+        },
+        {
+          name: "⏱️ Uptime",
+          value: `${days}j ${hours}h ${minutes}m`,
+          inline: true
+        },
+        {
+          name: "👑 Administrateur",
+          value: `<@${interaction.user.id}>`,
+          inline: true
+        },
+        {
+          name: "🧠 Node.js",
+          value: process.version,
+          inline: true
+        }
+      )
+      .setTimestamp();
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+
+    return true;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | BOUTON : INFOS ADMIN
+  |--------------------------------------------------------------------------
+  */
+
+  if (customId === "admin_info") {
+    const embed = new EmbedBuilder()
+      .setColor(0xff1744)
+      .setTitle("👑 Administrateurs autorisés")
+      .setDescription(
+        [
+          `<@1178305844698435625>`,
+          `<@1523717252988403873>`
+        ].join("\n")
+      )
+      .addFields({
+        name: "🔐 Autorisation",
+        value:
+          "L'accès est contrôlé directement par l'ID Discord du compte."
+      })
+      .setTimestamp();
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+
+    return true;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | BOUTON : FERMER
+  |--------------------------------------------------------------------------
+  */
+
+  if (customId === "admin_close") {
+    await interaction.update({
+      content: "🔒 **Panneau d'administration fermé.**",
+      embeds: [],
+      components: []
+    });
+
+    return true;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | MODAL ANNOUNCE
+  |--------------------------------------------------------------------------
+  */
+
+  if (customId === "announce_modal") {
     const titleEn = interaction.fields.getTextInputValue(
       "announce_title_en"
     );
@@ -673,70 +379,64 @@ async function handleModal(interaction) {
     );
 
     /*
-     * Ici tu peux appeler ton système actuel d'annonce.
+     * Validation serveur
      */
 
-    const embed = new EmbedBuilder()
-      .setColor(COLORS.primary)
-      .setTitle(`📢 ${titleEn}`)
-      .setDescription(
-        `${descEn}\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `🇫🇷 **${titleFr}**\n` +
-        `${descFr}`
+    if (
+      !titleEn.trim() ||
+      !descEn.trim() ||
+      !titleFr.trim() ||
+      !descFr.trim()
+    ) {
+      await interaction.reply({
+        content: "❌ Tous les champs sont obligatoires.",
+        ephemeral: true
+      });
+
+      return true;
+    }
+
+    /*
+     * Pour l'instant on affiche un aperçu.
+     *
+     * Ici tu peux ensuite envoyer l'annonce
+     * vers ton canal Discord / API / base de données.
+     */
+
+    const preview = new EmbedBuilder()
+      .setColor(0xff1744)
+      .setTitle("📢 Nouvelle annonce")
+      .addFields(
+        {
+          name: "🇬🇧 " + titleEn,
+          value: descEn
+        },
+        {
+          name: "🇫🇷 " + titleFr,
+          value: descFr
+        }
       )
       .setFooter({
-        text: `PrimeGen • Announcement • ${interaction.user.username}`,
+        text: `Publié par ${interaction.user.username}`
       })
       .setTimestamp();
 
     await interaction.reply({
-      embeds: [embed],
-      ephemeral: true,
+      content: "✅ **Annonce créée avec succès.**",
+      embeds: [preview],
+      ephemeral: true
     });
 
-    return;
+    return true;
   }
 
-  if (interaction.customId === "admin_restock_modal") {
-    const service = interaction.fields.getTextInputValue("service");
-    const accounts = interaction.fields.getTextInputValue("accounts");
-
-    /*
-     * IMPORTANT :
-     * Branche ici ta fonction réelle de restock.
-     */
-
-    return interaction.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(COLORS.success)
-          .setTitle("📦 Restock reçu")
-          .setDescription(
-            `Service : \`${service}\`\n` +
-            `Lignes reçues : \`${accounts.split("\n").filter(Boolean).length}\``
-          )
-          .setFooter({
-            text: "PrimeGen Admin",
-          }),
-      ],
-      ephemeral: true,
-    });
-  }
+  return false;
 }
-
-/*
-|--------------------------------------------------------------------------
-| EXPORT
-|--------------------------------------------------------------------------
-*/
 
 module.exports = {
   command,
-  announceCommand,
   execute,
-  handleButton,
-  handleModal,
-  isAdmin,
+  handleInteraction,
   ADMIN_IDS,
+  isAdmin
 };
