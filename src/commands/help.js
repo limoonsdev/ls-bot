@@ -1,72 +1,67 @@
 /**
  * =====================================================
- * /HELP COMMAND
+ * /HELP COMMAND - DREAMSHOP EDITION
  * =====================================================
  * Displays help information about bot commands.
  */
 
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getLogger } = require('../utils/logger');
+const { PANEL_BANNER_URL, COLORS } = require('../config/constants');
 
 const logger = getLogger();
 
-/**
- * Command definition
- */
 const command = new SlashCommandBuilder()
   .setName('help')
-  .setDescription('Show help information')
+  .setDescription('Afficher la liste des commandes et l\'aide DreamShop')
   .setDMPermission(true);
 
-/**
- * Execute command
- */
 async function execute(interaction) {
   try {
     const embed = new EmbedBuilder()
-      .setColor(0x0984E3)
-      .setTitle('📋 PrimeGen Bot - Help')
-      .setDescription('Here are all available commands:')
+      .setColor(COLORS.INFO)
+      .setTitle('📋 DreamShop • Menu d\'Aide & Commandes')
+      .setDescription('Bienvenue sur l\'aide officielle de **DreamShop** !\nVoici la liste des commandes disponibles :')
       .addFields(
         {
-          name: '/gen',
-          value: 'Generate credentials for a service\n`/gen <service>`',
+          name: '🚀 /deploy [type] [channel]',
+          value: 'Déployer les panels interactifs (Générateurs, Shop, Stock, Tickets, FAQ, VIP). *(Admin)*',
           inline: false
         },
         {
-          name: '/check',
-          value: 'Check if credentials are valid\n`/check <service> <email:password>`',
+          name: '📦 /addstock / /prime-restock',
+          value: 'Ajouter ou restocker des comptes via fichier TXT/ULP ou lien GoFile. *(Staff)*',
           inline: false
         },
         {
-          name: '/stats',
-          value: 'View your personal statistics\n`/stats`',
+          name: '🎁 /freegen',
+          value: 'Générateur interactif par menu paginé.',
           inline: false
         },
         {
-          name: '/services',
-          value: 'View available services\n`/services [category]`',
+          name: '⚙️ /config',
+          value: 'Panneau de configuration interactif du bot. *(Admin)*',
           inline: false
         },
         {
-          name: '/prime-restock',
-          value: 'Restock Prime stock with TXT/ULP file (Staff)\n`/prime-restock <fichier> <service>`',
+          name: '🔍 /check & /checkfiles',
+          value: 'Vérifier la validité de comptes ou d\'un fichier combo.',
+          inline: false
+        },
+        {
+          name: '🎉 /giveaway & /drop',
+          value: 'Créer un concours ou lâcher un compte instantané.',
+          inline: false
+        },
+        {
+          name: '💡 Astuces & Accès',
+          value: '• Mettez **`.gg/dreamshop`** dans votre statut Discord pour débloquer le rôle **Free** !\n• Passez **VIP/Premium** sur le shop ou en ticket pour du stock illimité sans attente.',
           inline: false
         }
       )
-      .addFields(
-        {
-          name: '💡 Tips',
-          value: '• Free tier users have access to free services\n• Premium users unlock all services\n• Status required: .gg/primegen',
-          inline: false
-        }
-      )
-      .setFooter({ text: 'PrimeGen Bot v2.5' })
+      .setImage(PANEL_BANNER_URL)
+      .setFooter({ text: 'DreamShop v3.0 • .gg/dreamshop', iconURL: PANEL_BANNER_URL })
       .setTimestamp();
-
-    logger.debug('Command', 'Help command executed', {
-      user: interaction.user.tag
-    });
 
     await interaction.reply({
       embeds: [embed],
@@ -75,7 +70,7 @@ async function execute(interaction) {
   } catch (error) {
     logger.error('Command', 'Error in help command', { error: error.message });
     await interaction.reply({
-      content: '❌ An error occurred while displaying help.',
+      content: '❌ Une erreur est survenue lors de l\'affichage de l\'aide.',
       flags: 64
     });
   }

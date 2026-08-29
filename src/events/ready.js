@@ -1,6 +1,6 @@
 /**
  * =====================================================
- * READY EVENT HANDLER
+ * READY EVENT HANDLER - DREAMSHOP EDITION
  * =====================================================
  * Handles bot initialization when it connects to Discord.
  */
@@ -16,7 +16,7 @@ const logger = getLogger();
  */
 async function handleReady(client) {
   try {
-    logger.info('Ready', `✅ Bot is ready! Logged in as ${client.user.tag}`);
+    logger.info('Ready', `✅ DreamShop is ready! Logged in as ${client.user.tag}`);
     logger.info('Ready', `Connected to ${client.guilds.cache.size} guild(s)`);
 
     // Initialize hybrid database (PostgreSQL or SQLite fallback)
@@ -29,10 +29,10 @@ async function handleReady(client) {
 
     // Set bot status
     await client.user.setPresence({
-      activities: [{ name: '.gg/primegen', type: 3 }],
+      activities: [{ name: '.gg/dreamshop', type: 3 }], // Type 3 = WATCHING
       status: 'online'
     });
-    logger.info('Ready', 'Bot status updated');
+    logger.info('Ready', 'Bot status set to .gg/dreamshop');
 
     // Restore panels
     try {
@@ -46,7 +46,6 @@ async function handleReady(client) {
         const panelsData = row.panels_data || {};
         
         for (const [type, data] of Object.entries(panelsData)) {
-          // Fallback check: data might just have messageId if saved by old code
           const msgIds = data.messageIds || (data.messageId ? [data.messageId] : null);
           if (data && data.channelId && msgIds && msgIds.length > 0) {
             registerPanel(msgIds, data.channelId, guildId, type, client);
@@ -68,17 +67,18 @@ async function handleReady(client) {
       readyAt: client.readyAt.toISOString()
     };
 
-    logger.info('Ready', 'Bot initialization complete', stats);
+    logger.info('Ready', 'DreamShop initialization complete', stats);
 
     // Display startup banner
     console.log('\n');
     console.log('╔═══════════════════════════════════════════════════════════════╗');
     console.log('║                                                               ║');
-    console.log('║         ⚡ PRIMEGEN BOT v2.5 ULTRA - READY ⚡                 ║');
+    console.log('║          ⚡ DREAMSHOP v3.0 ULTRA - READY ⚡                   ║');
     console.log('║                                                               ║');
     console.log('║               🎨 Ultra-Styled Panels System                   ║');
     console.log('║               ⚡ Auto-Update Every 5 Seconds                  ║');
-    console.log('║               🎯 Custom Emojis Everywhere                     ║');
+    console.log('║               🎯 Custom Emojis & Prime Tools                  ║');
+    console.log('║               👑 Status Vanity: .gg/dreamshop                 ║');
     console.log('║                                                               ║');
     console.log('╚═══════════════════════════════════════════════════════════════╝');
     console.log('');

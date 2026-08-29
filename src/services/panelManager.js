@@ -2,7 +2,7 @@
  * =====================================================
  * PANEL MANAGER - AUTO UPDATE SYSTEM
  * =====================================================
- * Manages active panels and auto-updates them every 5 seconds
+ * Manages active panels and auto-updates them in real time
  */
 
 const { EmbedBuilder } = require('discord.js');
@@ -45,32 +45,29 @@ async function getOrFetchEmoji(guild, service) {
 async function buildStatusEmbed(guild) {
   const services = getAllServices();
 
-  // Custom status emojis
   const EMOJI_UP = '<a:servicesup:1532399539187617792>';
   const EMOJI_DOWN = '<a:servicesdown:1532399527418400988>';
 
-  let description = '**💻 Systems Status**\n';
-  description += `${EMOJI_UP} 🤖 **Discord Bot** • \`Online\`\n`;
-  description += `${EMOJI_UP} ⚙️ **Backend API** • \`Online\`\n`;
-  description += `${EMOJI_UP} 🌐 **Web Dashboard (primegen.eu)** • \`Online\`\n`;
-  description += `${EMOJI_UP} 💾 **Database** • \`Online\`\n\n`;
-  description += '*(All systems are fully synchronized in real-time)*';
+  let description = '**💻 État des Systèmes DreamShop**\n';
+  description += `${EMOJI_UP} 🤖 **Discord Bot** • \`Opérationnel\`\n`;
+  description += `${EMOJI_UP} ⚡ **Générateurs** • \`En Ligne\`\n`;
+  description += `${EMOJI_UP} 💾 **Base de Données** • \`Connectée\`\n\n`;
 
   const embed = new EmbedBuilder()
-    .setTitle('⚡ PRIMEGEN.EU | SYSTEMS STATUS')
+    .setTitle('📊 DreamShop • Systems Status')
     .setDescription(description)
     .addFields(
       {
-        name: '⏱️ Update',
-        value: 'Automatic every 5 seconds',
+        name: '⏱️ Actualisation',
+        value: 'Automatique toutes les 10 secondes',
         inline: true
       }
     )
     .setColor(COLORS.INFO)
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: `⚡ PrimeGen.eu • Systems Manager • ${new Date().toLocaleTimeString('fr-FR')}`,
-      iconURL: 'https://i.goopics.net/2eukvn.gif'
+      text: `DreamShop • Systems Manager • ${new Date().toLocaleTimeString('fr-FR')}`,
+      iconURL: PANEL_BANNER_URL
     })
     .setTimestamp();
 
@@ -81,15 +78,13 @@ async function buildStatusEmbed(guild) {
  * Register a panel for auto-update
  */
 function registerPanel(messageIdInput, channelId, guildId, type, client) {
-  // Only update supported panels
-  if (!['status', 'stock', 'basic_panel', 'gen_premium', 'gen_prime', 'collab_targxt'].includes(type)) {
+  if (!['status', 'stock', 'basic_panel', 'gen_prime', 'prime_stock'].includes(type)) {
     return;
   }
 
   const msgIds = Array.isArray(messageIdInput) ? messageIdInput : [messageIdInput];
   const groupId = msgIds[0];
 
-  // Clear existing interval if any
   if (activePanels.has(groupId)) {
     clearInterval(activePanels.get(groupId).interval);
   }
@@ -103,7 +98,6 @@ function registerPanel(messageIdInput, channelId, guildId, type, client) {
   };
   activePanels.set(groupId, panelData);
 
-  // Create update interval (5 seconds)
   panelData.interval = setInterval(async () => {
     if (panelData.isUpdating) {
       logger.debug('PanelManager', `Skipping update for ${groupId}, previous update still in progress.`);
@@ -115,7 +109,6 @@ function registerPanel(messageIdInput, channelId, guildId, type, client) {
       const guild = await client.guilds.fetch(guildId);
       const channel = await guild.channels.fetch(channelId);
 
-      // Build new payloads based on panel type
       let newPanels = [];
       if (type === 'status') {
         newPanels = [{ embed: await buildStatusEmbed(guild), components: [] }];
@@ -129,15 +122,12 @@ function registerPanel(messageIdInput, channelId, guildId, type, client) {
       } else if (type === 'gen_prime') {
         const { buildPrimePanel } = require('../commands/deploy');
         newPanels = await buildPrimePanel(guild);
-      } else if (type === 'gen_premium') {
-        const { buildPremiumPanel } = require('../commands/deploy');
-        newPanels = await buildPremiumPanel(guild);
-      } else if (type === 'collab_targxt') {
-        const { buildTargxtPanel } = require('../commands/deploy');
-        newPanels = await buildTargxtPanel(guild);
+      } else if (type === 'prime_stock') {
+        const { buildPrimeStockPanel } = require('../commands/deploy');
+        const primeStockPanel = await buildPrimeStockPanel(guild);
+        newPanels = [{ embed: primeStockPanel.embed, components: primeStockPanel.components }];
       }
 
-      // Update each message
       for (let i = 0; i < msgIds.length; i++) {
         if (!newPanels[i]) continue;
         const msgId = msgIds[i];
@@ -155,7 +145,7 @@ function registerPanel(messageIdInput, channelId, guildId, type, client) {
 
       logger.debug('PanelManager', `Updated ${type} panel group`, { groupId });
     } catch (error) {
-      if (error.code === 10003 || error.code === 50001 || error.code === 10011 || error.code === 10004) { // Unknown Channel, Missing Access, Unknown Role/Missing Permissions, Unknown Guild
+      if (error.code === 10003 || error.code === 50001 || error.code === 10011 || error.code === 10004) {
         logger.warn('PanelManager', `Cannot access channel/guild, unregistering panel group ${groupId}`);
         unregisterPanel(groupId);
       } else {
@@ -164,14 +154,11 @@ function registerPanel(messageIdInput, channelId, guildId, type, client) {
     } finally {
       panelData.isUpdating = false;
     }
-  }, 10000); // 10 seconds to reduce rate limits
+  }, 10000);
 
   logger.info('PanelManager', `Registered ${type} panel group for auto-update`, { groupId });
 }
 
-/**
- * Unregister a panel
- */
 function unregisterPanel(messageId) {
   const panel = activePanels.get(messageId);
   if (panel) {
@@ -181,16 +168,10 @@ function unregisterPanel(messageId) {
   }
 }
 
-/**
- * Get active panels count
- */
 function getActivePanelsCount() {
   return activePanels.size;
 }
 
-/**
- * Stop all panels
- */
 function stopAllPanels() {
   for (const [messageId, panel] of activePanels.entries()) {
     clearInterval(panel.interval);

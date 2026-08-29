@@ -1,8 +1,8 @@
 /**
  * =====================================================
- * DEPLOY COMMAND - ULTRA PREMIUM EDITION
+ * DEPLOY COMMAND - DREAMSHOP ULTRA EDITION
  * =====================================================
- * Deploy ultra-styled panels with custom emojis
+ * Deploy ultra-styled, automated panels with custom emojis
  */
 
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
@@ -16,26 +16,27 @@ const logger = getLogger();
 
 const command = new SlashCommandBuilder()
   .setName('deploy')
-  .setDescription('🚀 Deploy PrimeGen.eu panels')
+  .setDescription('🚀 Déployer les panels DreamShop (Générateurs, Prime, Shop, Stock, Tickets, etc.)')
   .setDefaultMemberPermissions('8') // Administrator permission
   .addStringOption(option =>
     option.setName('type')
-      .setDescription('Type of panel to deploy')
+      .setDescription('Type de panel à déployer')
       .setRequired(true)
       .addChoices(
-        { name: '✨ Free Generators Panel', value: 'basic_panel' },
-        { name: '🌟 Premium Generators Panel', value: 'gen_premium' },
-        { name: '💎 Prime Generators Panel', value: 'gen_prime' },
-        { name: '🤝 Targxt Collab Panel', value: 'collab_targxt' },
-        { name: '✉️ PrimeMail (Temp OTP)', value: 'primemail' },
-        { name: '✅ Verification Panel (Web Callback)', value: 'verification' },
-        { name: '🎫 Ticket & Support Panel', value: 'ticket' },
-        { name: '📊 Systems Status Panel', value: 'status' },
-        { name: '📦 Live Stock Panel', value: 'stock' }
+        { name: '✨ Panel Générateur (Free & Premium)', value: 'basic_panel' },
+        { name: '💎 Panel Prime (Fortnite & Valorant HQ)', value: 'gen_prime' },
+        { name: '📦 Panel Stock Prime', value: 'prime_stock' },
+        { name: '✅ Panel Vérification', value: 'verification' },
+        { name: '🎫 Panel Tickets & Support', value: 'ticket' },
+        { name: '📊 Panel Statut des Systèmes', value: 'status' },
+        { name: '📦 Panel Stock Global en Direct', value: 'stock' },
+        { name: '❓ Panel FAQ', value: 'faq' },
+        { name: '🛒 Panel Boutique Automatisée', value: 'shop' },
+        { name: '👑 Panel Tarifs VIP', value: 'vip_price' }
       ))
   .addChannelOption(option =>
     option.setName('channel')
-      .setDescription('Channel to deploy the panel in')
+      .setDescription('Salon où déployer le panel')
       .setRequired(true));
 
 async function execute(interaction) {
@@ -47,7 +48,7 @@ async function execute(interaction) {
 
     if (!channel.isTextBased()) {
       return interaction.editReply({
-        content: `${EMOJIS.ERROR} This channel is not a text channel!`
+        content: `${EMOJIS.ERROR} Ce salon n'est pas un salon textuel !`
       });
     }
 
@@ -58,20 +59,12 @@ async function execute(interaction) {
       panelsToDeploy = await buildBasicPanels(interaction.guild);
       break;
     }
-    case 'gen_premium': {
-      panelsToDeploy = await buildPremiumPanel(interaction.guild);
-      break;
-    }
-    case 'collab_targxt': {
-      panelsToDeploy = await buildTargxtPanel(interaction.guild);
-      break;
-    }
     case 'gen_prime': {
       panelsToDeploy = await buildPrimePanel(interaction.guild);
       break;
     }
-    case 'primemail': {
-      panelsToDeploy.push(buildPrimeMailPanel());
+    case 'prime_stock': {
+      panelsToDeploy.push(await buildPrimeStockPanel(interaction.guild));
       break;
     }
     case 'verification': {
@@ -91,6 +84,18 @@ async function execute(interaction) {
       panelsToDeploy.push(await buildStockPanel(interaction.guild));
       break;
     }
+    case 'faq': {
+      panelsToDeploy.push(buildFAQPanel());
+      break;
+    }
+    case 'shop': {
+      panelsToDeploy.push(await buildShopPanel(interaction.guild));
+      break;
+    }
+    case 'vip_price': {
+      panelsToDeploy.push(await buildVipPricePanel(interaction.guild));
+      break;
+    }
     }
 
     const messageIds = [];
@@ -100,10 +105,9 @@ async function execute(interaction) {
     }
 
     // Register panels for auto-update
-    if (['status', 'stock', 'basic_panel', 'gen_premium', 'gen_prime', 'collab_targxt'].includes(type) && messageIds.length > 0) {
+    if (['status', 'stock', 'basic_panel', 'gen_prime', 'prime_stock'].includes(type) && messageIds.length > 0) {
       const { registerPanel } = require('../services/panelManager');
       const { getOrCreateGuildPanels, updateGuildPanels } = require('../database/models');
-      // Pass the array of message IDs, identifying the group by the first ID
       registerPanel(messageIds, channel.id, interaction.guild.id, type, interaction.client);
       
       try {
@@ -125,18 +129,18 @@ async function execute(interaction) {
       channel: channel.id,
       message: messageIds[0] || 'none',
       user: interaction.user.id,
-      autoUpdate: ['status', 'stock', 'basic_panel', 'gen_premium', 'gen_prime', 'collab_targxt'].includes(type)
+      autoUpdate: ['status', 'stock', 'basic_panel', 'gen_prime', 'prime_stock'].includes(type)
     });
 
     await interaction.editReply({
-      content: `${EMOJIS.SUCCESS} **${type}** panel successfully deployed in ${channel}!\n` +
-        (['status', 'stock', 'basic_panel', 'gen_premium', 'gen_prime', 'collab_targxt'].includes(type) ? `${EMOJIS.INFO} Auto-update activated (every 5 seconds)` : '')
+      content: `${EMOJIS.SUCCESS} **Panel ${type}** déployé avec succès dans ${channel} !\n` +
+        (['status', 'stock', 'basic_panel', 'gen_prime', 'prime_stock'].includes(type) ? `${EMOJIS.INFO} Actualisation en temps réel activée.` : '')
     });
 
   } catch (error) {
-    logger.error('Deploy', 'Deploy command failed', { error: error.message, stack: error.stack, errors: error.errors });
+    logger.error('Deploy', 'Deploy command failed', { error: error.message, stack: error.stack });
     const reply = {
-      content: `${EMOJIS.ERROR} Error during deployment: ${error.message}`
+      content: `${EMOJIS.ERROR} Erreur lors du déploiement: ${error.message}`
     };
     if (interaction.deferred) {
       await interaction.editReply(reply);
@@ -147,13 +151,11 @@ async function execute(interaction) {
 }
 
 /**
- * Build ultra-styled basic generation panel with custom emojis - NO ASCII (Supports multiple messages)
+ * Build ultra-styled basic generation panel with custom emojis
  */
 async function buildBasicPanels(guild) {
-  // Get all free services
-  const services = getServicesByTier('free');
+  const services = [...getServicesByTier('free'), ...getServicesByTier('premium')];
   
-  // Fetch stock data for button labels
   const { query } = require('../database/hybridPool');
   const stockData = {};
   try {
@@ -162,64 +164,70 @@ async function buildBasicPanels(guild) {
       stockData[row.service_id] = parseInt(row.count, 10) || 0;
     }
   } catch (error) {
-    // Silently continue if stock fetch fails
+    // Silently continue
   }
-
-  // Only keep services that have stock > 0
-  const availableServices = services.filter(service => (stockData[service.id] || 0) > 0);
 
   const panels = [];
   
-  if (availableServices.length === 0) {
-    const embed = new EmbedBuilder()
-      .setTitle('✨ PRIMEGEN BASIC')
-      .setDescription('**No service is currently available!**\n\nCome back later after the next restock.')
-      .setColor(COLORS.FREE)
-      .setImage(PANEL_BANNER_URL)
-      .setFooter({ text: '✨ PrimeGen • Basic Access', iconURL: 'https://i.goopics.net/2eukvn.gif' })
-      .setTimestamp();
-    return [{ embed, components: [] }];
-  }
-  
   // Split services into chunks of 25 (Discord max components per message)
-  for (let i = 0; i < availableServices.length; i += 25) {
-    const chunk = availableServices.slice(i, i + 25);
+  for (let i = 0; i < services.length; i += 25) {
+    const chunk = services.slice(i, i + 25);
     
+    let serviceList = '> ';
+    let count = 0;
+    for (const service of chunk.slice(0, 12)) {
+      const emoji = await getOrFetchEmoji(guild, service);
+      const emojiStr = typeof emoji === 'string' ? emoji : (emoji?.toString() || service.defaultEmoji);
+      serviceList += `${emojiStr} **${service.label}**  `;
+      count++;
+      if (count % 3 === 0 && count < 12) serviceList += '\n> ';
+    }
+    if (chunk.length > 12) serviceList += `\n> *... et ${chunk.length - 12} autres services ci-dessous*`;
+    
+    const titleSuffix = i > 0 ? ` (Partie ${Math.floor(i/25) + 1})` : '';
+
     const embed = new EmbedBuilder()
-      .setTitle(`PrimeGen - Free Services${titleSuffix}`)
+      .setTitle(`✨ DreamShop • Générateur Principal${titleSuffix}`)
       .setDescription(
-        'Use the buttons below to generate a free account.\n\n' +
-        'Free accounts may stop working quickly. For guaranteed access, consider upgrading.'
+        i === 0 ? (
+          '### 🎁 Accès Free & Premium\n\n' +
+          '> 🔄 **Stock en direct :** Mis à jour automatiquement\n' +
+          '> 🌍 **Catalogue étendu :** Streaming, Gaming, VPN, Utilitaires\n' +
+          '> 💬 **Règle :** N\'oubliez pas de laisser un **#proof** sous 24h\n' +
+          '> 💎 **Statut Requis :** Mettez `.gg/dreamshop` dans votre profil Discord !\n\n' +
+          '### 📦 Services Disponibles\n' +
+          `${serviceList}\n\n` +
+          '**👇 Cliquez sur le bouton de votre choix pour générer :**'
+        ) : (
+          '### 📦 Plus de services disponibles\n\n' +
+          `${serviceList}\n\n` +
+          '**👇 Cliquez sur le bouton de votre choix pour générer :**'
+        )
       )
       .setColor(COLORS.FREE)
       .setFooter({ 
-        text: '⚡ PrimeGen.eu • Connected' + titleSuffix,
-        iconURL: 'https://i.goopics.net/2eukvn.gif'
+        text: '✨ DreamShop • Accès Instantané' + titleSuffix,
+        iconURL: PANEL_BANNER_URL
       })
       .setTimestamp();
       
-    // Only add banner to the first message to prevent chat clutter
     if (i === 0) {
       embed.setImage(PANEL_BANNER_URL);
     }
 
-    // Create buttons with CUSTOM emojis
     const components = [];
     let currentRow = new ActionRowBuilder();
     let buttonCount = 0;
 
     for (const service of chunk) {
-      // Get or create custom emoji
       const emoji = await getOrFetchEmoji(guild, service);
-      
       const stockCount = stockData[service.id] || 0;
       
       const button = new ButtonBuilder()
         .setCustomId(`gen_${service.tier}_${service.id}`)
-        .setLabel(`${service.label.substring(0, 60)} [${stockCount}]`)
-        .setStyle(ButtonStyle.Primary);
+        .setLabel(`${service.label.substring(0, 50)} [${stockCount}]`)
+        .setStyle(service.tier === 'premium' ? ButtonStyle.Primary : ButtonStyle.Secondary);
 
-      // Set emoji (custom object or default string)
       if (typeof emoji === 'string') {
         button.setEmoji(emoji);
       } else if (emoji && emoji.id) {
@@ -229,7 +237,6 @@ async function buildBasicPanels(guild) {
       currentRow.addComponents(button);
       buttonCount++;
 
-      // Start new row after 5 buttons
       if (buttonCount % 5 === 0 || buttonCount === chunk.length) {
         components.push(currentRow);
         currentRow = new ActionRowBuilder();
@@ -243,33 +250,36 @@ async function buildBasicPanels(guild) {
 }
 
 /**
- * Build ultra-styled verification panel - OAUTH2 LINK
+ * Build ultra-styled verification panel - Pure Discord Native Verification
  */
 function buildVerificationPanel() {
-  const OAUTH2_URL = 'https://primegen.eu/api/auth/signin/discord';
-
   const embed = new EmbedBuilder()
-    .setTitle('PrimeGen - Verification')
+    .setTitle('✅ DreamShop • Vérification des Membres')
     .setDescription(
-      'Verify your Discord account to gain full access to the server and our services.\n\n' +
-      'Click the button below to link your account.'
+      '### 👋 Bienvenue sur DreamShop !\n\n' +
+      '> 🛡️ Pour débloquer l\'accès aux salons, générateurs et à la boutique, veuillez vous vérifier.\n\n' +
+      '**Ce que vous débloquez :**\n' +
+      '> 🎁 **Rôle Vérifié instantané**\n' +
+      '> ⚡ **Accès débloqué en 1 clic**\n' +
+      '> 👑 **Accès direct aux générateurs et tickets**\n\n' +
+      '**👇 Cliquez sur le bouton ci-dessous pour valider votre accès :**'
     )
     .setColor(COLORS.SUCCESS)
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: '⚡ PrimeGen.eu Verification • Secure & Instant',
-      iconURL: 'https://i.goopics.net/2eukvn.gif'
+      text: '✅ DreamShop Verification • Instant & Secure',
+      iconURL: PANEL_BANNER_URL
     })
     .setTimestamp();
 
   const button = new ButtonBuilder()
-    .setLabel('✅ Verify Me')
-    .setStyle(ButtonStyle.Link)
-    .setURL(OAUTH2_URL);
+    .setCustomId('verify_user')
+    .setLabel('✅ Se Vérifier / Verify')
+    .setStyle(ButtonStyle.Success);
 
   const manualVerifyBtn = new ButtonBuilder()
     .setCustomId('verify_manual')
-    .setLabel('❓ Doesn\'t work? Click here!')
+    .setLabel('❓ Besoin d\'aide ?')
     .setStyle(ButtonStyle.Secondary);
 
   const row = new ActionRowBuilder().addComponents(button, manualVerifyBtn);
@@ -278,33 +288,41 @@ function buildVerificationPanel() {
 }
 
 /**
- * Build ultra-styled ticket panel - NO ASCII
+ * Build ultra-styled ticket panel
  */
 function buildTicketPanel() {
   const embed = new EmbedBuilder()
-    .setTitle('PrimeGen - Support')
+    .setTitle('🎫 DreamShop • Centre de Support & Tickets')
     .setDescription(
-      'Need help with an order, a replacement, or have a question?\n\n' +
-      'Open a ticket below and our team will assist you.'
+      '**Besoin d\'assistance ou d\'une commande personnalisée ?**\n\n' +
+      '> 💳 **Achats & Commandes** (Paiement, livraison Nitro, Boosts, Robux)\n' +
+      '> ♻️ **Remplacements & Garanties** (Comptes, SAV)\n' +
+      '> 🤝 **Partenariats & Collaborations** (YouTube, TikTok, Discord)\n' +
+      '> ❓ **Questions Générales** (Comment générer, devenir VIP)\n\n' +
+      '*Notre équipe vous répond rapidement 7j/7.*\n' +
+      '**👇 Cliquez sur le bouton ci-dessous pour ouvrir un ticket :**'
     )
     .setColor(COLORS.INFO)
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: '⚡ PrimeGen.eu Support • Available 24/7',
-      iconURL: 'https://i.goopics.net/2eukvn.gif'
+      text: '🎫 DreamShop Support • Service 24/7',
+      iconURL: PANEL_BANNER_URL
     })
     .setTimestamp();
 
   const button = new ButtonBuilder()
     .setCustomId('ticket_create')
-    .setLabel('📩 Open a Ticket')
-    .setStyle(ButtonStyle.Success);
+    .setLabel('📩 Ouvrir un Ticket')
+    .setStyle(ButtonStyle.Primary);
 
   const row = new ActionRowBuilder().addComponents(button);
 
   return { embed, components: [row] };
 }
 
+/**
+ * Build stock panel
+ */
 async function buildStockPanel(guild) {
   const { query } = require('../database/hybridPool');
   
@@ -312,7 +330,7 @@ async function buildStockPanel(guild) {
   
   const categories = {
     '🎬 STREAMING': ['netflix', 'disney', 'paramount', 'hbomax', 'primevideo', 'crunchyroll', 'adn', 'dazn'],
-    '🎮 GAMING': ['steam', 'epicgames', 'fortnite', 'valorant', 'xbox', 'psn', 'battlenet', 'roblox'],
+    '🎮 GAMING': ['steam', 'epicgames', 'fortnite', 'valorant', 'roblox', 'minecraft', 'xbox', 'psn', 'battlenet'],
     '🛡️ VPN': ['nordvpn', 'expressvpn', 'mullvadvpn', 'protonvpn'],
     '🎵 MUSIC': ['spotify', 'deezer'],
     '📧 OTHERS': ['gmail', 'hotmail', 'paypal', 'ebay', 'duolingo', 'mega']
@@ -332,7 +350,7 @@ async function buildStockPanel(guild) {
     // Ignore DB errors
   }
   
-  let description = `**Total Accounts Available:** \`${totalStock}\`\n\n`;
+  let description = `### 📦 Total des comptes disponibles : \`${totalStock.toLocaleString()}\`\n\n`;
 
   for (const [categoryName, serviceIds] of Object.entries(categories)) {
     description += `**${categoryName}**\n`;
@@ -342,7 +360,7 @@ async function buildStockPanel(guild) {
 
       const count = stockData[service.id] || 0;
       const emoji = await getOrFetchEmoji(guild, service);
-      const emojiStr = typeof emoji === 'string' ? emoji : `<:${emoji.name}:${emoji.id}>`;
+      const emojiStr = typeof emoji === 'string' ? emoji : (emoji?.toString() || service.defaultEmoji);
       
       description += `> ${emojiStr} **${service.label}:** \`${count}\`\n`;
     }
@@ -350,13 +368,13 @@ async function buildStockPanel(guild) {
   }
   
   const embed = new EmbedBuilder()
-    .setTitle('PrimeGen - Live Stock')
+    .setTitle('📦 DreamShop • Stock Global en Direct')
     .setDescription(description)
     .setColor(COLORS.SUCCESS)
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: '⚡ PrimeGen.eu Stock • Real-Time Updates',
-      iconURL: 'https://i.goopics.net/2eukvn.gif'
+      text: '📦 DreamShop Live Stock • Auto-Update',
+      iconURL: PANEL_BANNER_URL
     })
     .setTimestamp();
     
@@ -368,26 +386,24 @@ async function buildStockPanel(guild) {
  */
 function buildFAQPanel() {
   const embed = new EmbedBuilder()
-    .setTitle('⚡ PRIMEGEN.EU | F.A.Q')
+    .setTitle('❓ DreamShop • Foire Aux Questions (FAQ)')
     .setDescription(
-      '**Welcome to the FAQ! Here are answers to the most common questions:**\n\n' +
-      '> ⚡ **How do I generate an account?**\n' +
-      '> Go to the generator channels or directly on **[primegen.eu](https://primegen.eu)**.\n\n' +
-      '> ⏱️ **Is there a cooldown?**\n' +
-      '> Yes! Free users have a cooldown between generations. Premium users have zero cooldown. (Check `/help` for your status!)\n\n' +
-      '> 👑 **How do I get Premium?**\n' +
-      '> You can buy Premium to unlock exclusive services, bypass cooldowns, and get instant priority delivery. Check the **Shop**!\n\n' +
-      '> ❌ **My generated account doesn\'t work!**\n' +
-      '> Free accounts can sometimes die fast. For guaranteed high-quality accounts, use the **Premium** generator. If you purchased something and it doesn\'t work, open a **Ticket**.\n\n' +
-      '> 💬 **Why should I leave a #proof?**\n' +
-      '> Leaving proofs helps us maintain trust and sometimes earns you rewards! Plus, it\'s nice to say thanks.\n\n' +
-      '*Still have questions? Feel free to open a ticket!*'
+      '**Voici les réponses aux questions les plus fréquentes :**\n\n' +
+      '> ⚡ **Comment générer un compte ?**\n' +
+      '> Rendez-vous dans le salon du générateur et cliquez sur le bouton du service souhaité. Votre compte vous sera envoyé directement en message privé !\n\n' +
+      '> ⏱️ **Y a-t-il un cooldown / temps d\'attente ?**\n' +
+      '> Mettez `.gg/dreamshop` dans votre statut personnalisé Discord pour débloquer le rôle **Free**. Les membres **VIP / Premium** bénéficient de cooldowns fortement réduits ou nuls.\n\n' +
+      '> 👑 **Comment obtenir le rôle VIP / Prime ?**\n' +
+      '> Vous pouvez acheter le VIP directement sur la boutique automatisée ou en ouvrant un ticket pour débloquer les comptes exclusifs **💎 Prime**.\n\n' +
+      '> 💬 **Pourquoi laisser un avis (#proof) ?**\n' +
+      '> C\'est obligatoire dans les 24h après une génération pour maintenir la gratuité et la confiance sur le serveur. Tout manquement entraîne un avertissement.\n\n' +
+      '*Une question supplémentaire ? N\'hésitez pas à ouvrir un ticket support !*'
     )
     .setColor(COLORS.INFO)
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: '⚡ PrimeGen.eu • Knowledge Base',
-      iconURL: 'https://i.goopics.net/2eukvn.gif'
+      text: '❓ DreamShop • Centre d\'Aide',
+      iconURL: PANEL_BANNER_URL
     })
     .setTimestamp();
     
@@ -403,84 +419,84 @@ async function buildShopPanel(guild) {
 
   const { StringSelectMenuBuilder } = require('discord.js');
   const embed = new EmbedBuilder()
-    .setTitle('⚡ PRIMEGEN.EU | SHOP')
+    .setTitle('🛒 DreamShop • Boutique Automatisée')
     .setDescription(
-      '**Welcome to our Automated Shop!** 🚀\n\n' +
-      'Here you can purchase Discord Server Boosts, Discord Nitro, and Robux instantly.\n' +
-      'Our system supports **PayPal**, **Rewarble**, and **Robux**.\n\n' +
-      '**How it works:**\n' +
-      '1️⃣ Select your desired package from the menu below.\n' +
-      '2️⃣ Follow the payment instructions (PayPal, Giftcard, or Gamepass).\n' +
-      '3️⃣ Click **Submit Payment Proof** to verify your order.\n\n' +
-      '> ⚡ Secure, Fast, and Reliable!'
+      '**Bienvenue sur la boutique officielle DreamShop !** 🚀\n\n' +
+      'Achetez vos Boosts Discord, Discord Nitro et Robux instantanément.\n' +
+      'Moyens de paiement acceptés : **PayPal**, **Rewarble**, **Crypto** et **Robux**.\n\n' +
+      '**Comment commander :**\n' +
+      '1️⃣ Sélectionnez votre offre dans le menu déroulant ci-dessous.\n' +
+      '2️⃣ Suivez les instructions fournies dans votre salon de commande.\n' +
+      '3️⃣ Cliquez sur **Envoyer la preuve** pour validation automatique.\n\n' +
+      '> ⚡ Livraison rapide, prix imbattables et support dédié !'
     )
-    .setColor(COLORS.PREMIUM)
+    .setColor(COLORS.INFO)
     .setImage(PANEL_BANNER_URL)
-    .setFooter({ text: '⚡ PrimeGen.eu • Auto Shop System', iconURL: 'https://i.goopics.net/2eukvn.gif' })
+    .setFooter({ text: 'DreamShop • Automated Shop System', iconURL: PANEL_BANNER_URL })
     .setTimestamp();
 
   const selectRow = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId('shop_package_select')
-      .setPlaceholder('🛒 Select an item to order...')
+      .setPlaceholder('🛒 Choisissez une offre à commander...')
       .addOptions([
         {
-          label: '14 Boosts (1 Month)',
-          description: 'Price: 3.60 EUR',
+          label: '14 Boosts (1 Mois)',
+          description: 'Prix: 3.60 EUR • Discord Server Boosts',
           value: 'pkg_14b_1m',
           emoji: boostEmojiConfig
         },
         {
-          label: '28 Boosts (1 Month)',
-          description: 'Price: 5.60 EUR',
+          label: '28 Boosts (1 Mois)',
+          description: 'Prix: 5.60 EUR • Discord Server Boosts',
           value: 'pkg_28b_1m',
           emoji: boostEmojiConfig
         },
         {
-          label: '14 Boosts (3 Months)',
-          description: 'Price: 9.00 EUR',
+          label: '14 Boosts (3 Mois)',
+          description: 'Prix: 9.00 EUR • Discord Server Boosts',
           value: 'pkg_14b_3m',
           emoji: boostEmojiConfig
         },
         {
           label: '1000 Robux',
-          description: '1.79€ (Tax Not Covered)',
+          description: 'Prix: 1.79€ (Taxe non couverte)',
           value: 'pkg_robux_1000',
           emoji: { id: '1533223890548035746' }
         },
         {
           label: '1200 Robux',
-          description: '2.15€ (Tax Not Covered)',
+          description: 'Prix: 2.15€ (Taxe non couverte)',
           value: 'pkg_robux_1200',
           emoji: { id: '1533223890548035746' }
         },
         {
           label: '1400 Robux',
-          description: '2.51€ (Tax Not Covered)',
+          description: 'Prix: 2.51€ (Taxe non couverte)',
           value: 'pkg_robux_1400',
           emoji: { id: '1533223890548035746' }
         },
         {
           label: '1800 Robux',
-          description: '3.22€ (Tax Not Covered)',
+          description: 'Prix: 3.22€ (Taxe non couverte)',
           value: 'pkg_robux_1800',
           emoji: { id: '1533223890548035746' }
         },
         {
           label: '2000 Robux',
-          description: '3.58€ (Tax Not Covered)',
+          description: 'Prix: 3.58€ (Taxe non couverte)',
           value: 'pkg_robux_2000',
           emoji: { id: '1533223890548035746' }
         },
         {
           label: '4000 Robux',
-          description: '7.16€ (Tax Not Covered)',
+          description: 'Prix: 7.16€ (Taxe non couverte)',
           value: 'pkg_robux_4000',
           emoji: { id: '1533223890548035746' }
         },
         {
-          label: 'Nitro 1 Month (Gift Link)',
-          description: '3.60€ (No CC Required)',
+          label: 'Nitro 1 Mois (Lien Cadeau)',
+          description: 'Prix: 3.60€ (Sans CB requise)',
           value: 'pkg_nitro_1m',
           emoji: { id: '1532768005388369940' }
         }
@@ -490,7 +506,7 @@ async function buildShopPanel(guild) {
   const buttonRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('ticket_create')
-      .setLabel('Contact Support')
+      .setLabel('Contacter le Support')
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -498,12 +514,11 @@ async function buildShopPanel(guild) {
 }
 
 /**
- * Build Prime Panel - Only Fortnite High Quality & Valorant Medium Quality
+ * Build Prime Panel - Exclusive High Quality Fortnite & Valorant
  */
 async function buildPrimePanel(guild) {
   const services = getServicesByTier('prime');
 
-  // Fetch stock data for button labels
   const { query } = require('../database/hybridPool');
   const stockData = {};
   try {
@@ -512,64 +527,68 @@ async function buildPrimePanel(guild) {
       stockData[row.service_id] = parseInt(row.count, 10) || 0;
     }
   } catch (error) {
-    // Silently continue if stock fetch fails
+    // Silently continue
   }
-
-  // Only keep services that have stock > 0
-  const availableServices = services.filter(service => (stockData[service.id] || 0) > 0);
 
   const panels = [];
 
-  if (availableServices.length === 0) {
-    const embed = new EmbedBuilder()
-      .setTitle('⚡ PRIMEGEN.EU | PRIME GENERATOR')
-      .setDescription('**No Prime service is currently available!**\n\nCome back later after the next restock.')
-      .setColor(COLORS.PREMIUM)
-      .setImage(PANEL_BANNER_URL)
-      .setFooter({ text: '⚡ PrimeGen.eu Prime • Ultra Exclusive', iconURL: 'https://i.goopics.net/2eukvn.gif' })
-      .setTimestamp();
-    return [{ embed, components: [] }];
-  }
-  // Split services into chunks of 25 (Discord max components per message)
-  for (let i = 0; i < availableServices.length; i += 25) {
-    const chunk = availableServices.slice(i, i + 25);
-    const titleSuffix = i > 0 ? ` (Part ${Math.floor(i/25) + 1})` : '';
+  for (let i = 0; i < services.length; i += 25) {
+    const chunk = services.slice(i, i + 25);
+
+    let serviceList = '> ';
+    let count = 0;
+    for (const service of chunk.slice(0, 12)) {
+      const emoji = await getOrFetchEmoji(guild, service);
+      const emojiStr = typeof emoji === 'string' ? emoji : (emoji?.toString() || service.defaultEmoji);
+      serviceList += `${emojiStr} **${service.label}**  `;
+      count++;
+      if (count % 3 === 0 && count < 12) serviceList += '\n> ';
+    }
+
+    const titleSuffix = i > 0 ? ` (Partie ${Math.floor(i/25) + 1})` : '';
 
     const embed = new EmbedBuilder()
-      .setTitle(`PrimeGen - Prime Exclusive${titleSuffix}`)
+      .setTitle(`💎 DreamShop • Générateur PRIME & VIP${titleSuffix}`)
       .setDescription(
-        'Welcome to the Prime tier.\n\n' +
-        'Guaranteed high-quality accounts and no queues. Select a service below.'
+        i === 0 ? (
+          '### 👑 Accès Exclusif Haute Qualité\n\n' +
+          '> ⚡ **Zéro Attente :** Génération instantanée sans file\n' +
+          '> 🏆 **Comptes Garantis :** Fortnite & Valorant High Quality\n' +
+          '> 📩 **Livraison Privée :** Envoi direct et sécurisé en DM\n' +
+          '> 💎 **Support VIP :** Traitement prioritaire 24/7\n\n' +
+          '### 📦 Services Prime Disponibles\n' +
+          `${serviceList}\n\n` +
+          '**👇 Cliquez sur un service Prime pour générer votre compte :**'
+        ) : (
+          '### 📦 Plus de services Prime...\n\n' +
+          `${serviceList}\n\n` +
+          '**👇 Cliquez sur un service Prime pour générer votre compte :**'
+        )
       )
-      .setColor('#FFD700') // Gold color for Prime
+      .setColor('#FFD700')
       .setFooter({ 
-        text: '💎 PrimeGen Prime • Ultra Exclusive' + titleSuffix,
-        iconURL: 'https://i.goopics.net/2eukvn.gif'
+        text: '💎 DreamShop Prime • Ultra Exclusive' + titleSuffix,
+        iconURL: PANEL_BANNER_URL
       })
       .setTimestamp();
 
-    // Only add banner to the first message to prevent chat clutter
     if (i === 0) {
       embed.setImage(PANEL_BANNER_URL);
     }
 
-    // Create buttons with CUSTOM emojis
     const components = [];
     let currentRow = new ActionRowBuilder();
     let buttonCount = 0;
 
     for (const service of chunk) {
-      // Get or create custom emoji
       const emoji = await getOrFetchEmoji(guild, service);
-
       const stockCount = stockData[service.id] || 0;
 
       const button = new ButtonBuilder()
         .setCustomId(`gen_prime_${service.id}`)
-        .setLabel(`${service.label.substring(0, 60)} [${stockCount}]`)
+        .setLabel(`${service.label.substring(0, 50)} [${stockCount}]`)
         .setStyle(ButtonStyle.Success);
 
-      // Set emoji (custom object or default string)
       if (typeof emoji === 'string') {
         button.setEmoji(emoji);
       } else if (emoji && emoji.id) {
@@ -579,7 +598,6 @@ async function buildPrimePanel(guild) {
       currentRow.addComponents(button);
       buttonCount++;
 
-      // Start new row after 5 buttons
       if (buttonCount % 5 === 0 || buttonCount === chunk.length) {
         components.push(currentRow);
         currentRow = new ActionRowBuilder();
@@ -593,13 +611,12 @@ async function buildPrimePanel(guild) {
 }
 
 /**
- * Build Prime Stock Panel - Shows stock for Prime services (Restock via /prime-restock)
+ * Build Prime Stock Panel
  */
 async function buildPrimeStockPanel(guild) {
   const { query } = require('../database/hybridPool');
 
   let totalStock = 0;
-
   const primeServices = getServicesByTier('prime');
   const stockData = {};
 
@@ -614,27 +631,27 @@ async function buildPrimeStockPanel(guild) {
     // Ignore DB errors
   }
 
-  let description = `**💎 Prime Total Accounts Available:** \`${totalStock}\`\n\n`;
+  let description = `### 💎 Total des comptes Prime : \`${totalStock.toLocaleString()}\`\n\n`;
 
   for (const service of primeServices) {
     const count = stockData[service.id] || 0;
     const emoji = await getOrFetchEmoji(guild, service);
-    const emojiStr = typeof emoji === 'string' ? emoji : `<:${emoji.name}:${emoji.id}>`;
+    const emojiStr = typeof emoji === 'string' ? emoji : (emoji?.toString() || service.defaultEmoji);
 
     description += `> ${emojiStr} **${service.label}**: \`${count}\`\n`;
   }
 
-  description += '\n> 💎 *Prime accounts are premium quality with better stats and longevity*\n' +
-    '> 🔒 *Restock is strictly restricted to staff using `/prime-restock`*';
+  description += '\n> 💎 *Les comptes Prime sont réservés aux membres VIP avec une qualité maximale*\n' +
+    '> 🔒 *Restock géré directement par le staff via `/prime-restock`*';
 
   const embed = new EmbedBuilder()
-    .setTitle('⚡ PRIMEGEN.EU | PRIME STOCK')
+    .setTitle('💎 DreamShop • Stock Prime en Direct')
     .setDescription(description)
-    .setColor(COLORS.PREMIUM)
+    .setColor('#FFD700')
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: '⚡ PrimeGen.eu Prime Stock • Auto Updates Every 5s',
-      iconURL: 'https://i.goopics.net/2eukvn.gif'
+      text: '💎 DreamShop Prime Stock • Auto Updates',
+      iconURL: PANEL_BANNER_URL
     })
     .setTimestamp();
 
@@ -645,7 +662,6 @@ async function buildPrimeStockPanel(guild) {
  * Build VIP Price Panel
  */
 async function buildVipPricePanel(guild) {
-  // Try to find custom emojis for decoration
   const vipEmoji = guild ? guild.emojis.cache.find(e => e.name.toLowerCase().includes('vip') || e.name.toLowerCase().includes('premium')) || '👑' : '👑';
   const checkEmoji = guild ? guild.emojis.cache.find(e => e.name.toLowerCase().includes('check') || e.name.toLowerCase().includes('yes')) || '✅' : '✅';
   const moneyEmoji = guild ? guild.emojis.cache.find(e => e.name.toLowerCase().includes('money') || e.name.toLowerCase().includes('coin') || e.name.toLowerCase().includes('paypal')) || '💰' : '💰';
@@ -653,32 +669,34 @@ async function buildVipPricePanel(guild) {
   const flashEmoji = guild ? guild.emojis.cache.find(e => e.name.toLowerCase().includes('flash') || e.name.toLowerCase().includes('zap')) || '⚡' : '⚡';
 
   const embed = new EmbedBuilder()
-    .setTitle(`⚡ PRIMEGEN.EU | PRIME SUBSCRIPTION`)
+    .setTitle(`${vipEmoji} DreamShop VIP • L'EXPÉRIENCE ULTIME`)
     .setDescription(
-      `**Upgrade to PRIME and unlock the full potential of PrimeGen!** ${starEmoji}\n\n` +
-      `### ${flashEmoji} EXCLUSIVE ADVANTAGES:\n` +
-      `> ${checkEmoji} **Zero Cooldown:** Generate without waiting (or highly reduced limits).\n` +
-      `> ${checkEmoji} **Prime Access:** Access to the ultra-exclusive **💎 Prime** generators.\n` +
-      `> ${checkEmoji} **Web & Discord Sync:** Your subscription works everywhere.\n` +
-      `> ${checkEmoji} **Priority Support:** Your tickets are answered first.\n` +
-      `> ${checkEmoji} **High Quality:** Guaranteed working and high-level accounts.\n\n` +
-      `### ${moneyEmoji} PRIME PRICING:\n` +
-      `> **Premium** ➔ \`4.99€\` / month\n` +
-      `> **Prime** ➔ \`9.99€\` / month (Best Value 🔥)\n\n` +
-      `**How to purchase?**\n` +
-      `Click the button below to open a ticket or visit **[primegen.eu/dashboard/shop](https://primegen.eu/dashboard/shop)**.`
+      `**Passez au statut VIP et débloquez la puissance totale de DreamShop !** ${starEmoji}\n\n` +
+      `### ${flashEmoji} VOS AVANTAGES EXCLUSIFS :\n` +
+      `> ${checkEmoji} **Zéro Cooldown :** Générez sans attente (ou limites ultra réduites)\n` +
+      `> ${checkEmoji} **Accès Prime HQ :** Accès aux générateurs exclusifs **Fortnite & Valorant High Quality**\n` +
+      `> ${checkEmoji} **Plafond Élevé :** Jusqu'à 50 générations par jour !\n` +
+      `> ${checkEmoji} **Support Prioritaire :** Vos tickets traités en premier\n` +
+      `> ${checkEmoji} **Comptes Vérifiés :** Qualité maximale et longévité\n` +
+      `> ${checkEmoji} **Salons Secrets :** Accès au salon VIP et restock leaks\n\n` +
+      `### ${moneyEmoji} TARIFS VIP :\n` +
+      `> **1 Semaine VIP** ➔ \`3.99€\`\n` +
+      `> **1 Mois VIP** ➔ \`9.99€\` *(Offre Populaire 🔥)*\n` +
+      `> **Lifetime VIP (À Vie)** ➔ \`39.99€\` *(Accès Définitif 👑)*\n\n` +
+      `**Comment souscrire ?**\n` +
+      `Cliquez sur le bouton ci-dessous pour ouvrir un ticket et régler par PayPal, Crypto, Robux ou Carte Cadeau.`
     )
-    .setColor(COLORS.PREMIUM) // VIP Pink/Purple color
+    .setColor('#FF00FF')
     .setImage(PANEL_BANNER_URL)
     .setFooter({ 
-      text: '⚡ PrimeGen.eu PRIME • Elevate your experience',
-      iconURL: 'https://i.goopics.net/2eukvn.gif'
+      text: '👑 DreamShop VIP • Elevate your experience',
+      iconURL: PANEL_BANNER_URL
     })
     .setTimestamp();
 
   const button = new ButtonBuilder()
     .setCustomId('ticket_create')
-    .setLabel('💎 Purchase V.I.P')
+    .setLabel('💎 Acheter le VIP / Buy VIP')
     .setStyle(ButtonStyle.Primary);
 
   const row = new ActionRowBuilder().addComponents(button);
@@ -686,201 +704,14 @@ async function buildVipPricePanel(guild) {
   return { embeds: [embed], components: [row] };
 }
 
-/**
- * Build PrimeTools Panel
- */
-
-
-/**
- * Build ultra-styled Premium generation panel
- */
-async function buildPremiumPanel(guild) {
-  // Get all premium services
-  const services = getServicesByTier('premium');
-  
-  // Fetch stock data for button labels
-  const { query } = require('../database/hybridPool');
-  const stockData = {};
-  try {
-    const result = await query('SELECT service_id, COUNT(*) as count FROM combos GROUP BY service_id');
-    for (const row of result.rows) {
-      stockData[row.service_id] = parseInt(row.count, 10) || 0;
-    }
-  } catch (error) {
-    // Silently continue if stock fetch fails
-  }
-
-  // Only keep services that have stock > 0
-  const availableServices = services.filter(service => (stockData[service.id] || 0) > 0);
-
-  const panels = [];
-  
-  if (availableServices.length === 0) {
-    const embed = new EmbedBuilder()
-      .setTitle('⚡ PRIMEGEN.EU | PREMIUM GENERATORS')
-      .setDescription('**No premium service is currently available!**\n\nCome back later after the next restock.')
-      .setColor(COLORS.PREMIUM)
-      .setImage(PANEL_BANNER_URL)
-      .setFooter({ text: '⚡ PrimeGen.eu • Premium Access', iconURL: 'https://i.goopics.net/2eukvn.gif' })
-      .setTimestamp();
-    return [{ embed, components: [] }];
-  }
-  
-  // Split services into chunks of 25 (Discord max components per message)
-  for (let i = 0; i < availableServices.length; i += 25) {
-    const chunk = availableServices.slice(i, i + 25);
-    
-    const embed = new EmbedBuilder()
-      .setTitle(`PrimeGen - Premium Services${titleSuffix}`)
-      .setDescription(
-        'Welcome to the Premium tier.\n\n' +
-        'Select a service below to generate an account.'
-      )
-      .setColor(COLORS.PREMIUM)
-      .setFooter({ 
-        text: '⚡ PrimeGen.eu • Connected' + titleSuffix,
-        iconURL: 'https://i.goopics.net/2eukvn.gif'
-      })
-      .setTimestamp();
-      
-    // Only add banner to the first message to prevent chat clutter
-    if (i === 0) {
-      embed.setImage(PANEL_BANNER_URL);
-    }
-
-    // Create buttons with CUSTOM emojis
-    const components = [];
-    let currentRow = new ActionRowBuilder();
-    let buttonCount = 0;
-
-    for (const service of chunk) {
-      // Get or create custom emoji
-      const emoji = await getOrFetchEmoji(guild, service);
-      
-      const stockCount = stockData[service.id] || 0;
-      
-      const button = new ButtonBuilder()
-        .setCustomId(`gen_${service.tier}_${service.id}`)
-        .setLabel(`${service.label.substring(0, 60)} [${stockCount}]`)
-        .setStyle(ButtonStyle.Success);
-
-      // Set emoji (custom object or default string)
-      if (typeof emoji === 'string') {
-        button.setEmoji(emoji);
-      } else if (emoji && emoji.id) {
-        button.setEmoji(emoji.id);
-      }
-
-      currentRow.addComponents(button);
-      buttonCount++;
-
-      // Start new row after 5 buttons
-      if (buttonCount % 5 === 0 || buttonCount === chunk.length) {
-        components.push(currentRow);
-        currentRow = new ActionRowBuilder();
-      }
-    }
-    
-    panels.push({ embed, components });
-  }
-
-  return panels;
-}
-
-/**
- * Build ultra-styled Targxt Collab Panel
- */
-async function buildTargxtPanel(guild) {
-  // We can reuse some premium services or all free services for Targxt
-  const services = getServicesByTier('free'); // Can adjust what services are given
-  
-  // Fetch stock data for button labels
-  const { query } = require('../database/hybridPool');
-  const stockData = {};
-  try {
-    const result = await query('SELECT service_id, COUNT(*) as count FROM combos GROUP BY service_id');
-    for (const row of result.rows) {
-      stockData[row.service_id] = parseInt(row.count, 10) || 0;
-    }
-  } catch (error) {
-    // Silently continue if stock fetch fails
-  }
-
-  // Only keep top 5 services for the collab to keep it neat
-  const availableServices = services.filter(service => (stockData[service.id] || 0) > 0).slice(0, 5);
-
-  const panels = [];
-  
-  const embed = new EmbedBuilder()
-    .setTitle(`PrimeGen x Targxt`)
-    .setDescription(
-      'Welcome to the Targxt exclusive generator.\n\n' +
-      'Make sure you have `.gg/targxt` in your Discord status to use these services.'
-    )
-    .setColor('#FF4500') // Targxt color? Orange/Red
-    .setFooter({ 
-      text: '🤝 PrimeGen x Targxt • Partnership',
-      iconURL: 'https://i.goopics.net/2eukvn.gif'
-    })
-    .setImage(PANEL_BANNER_URL)
-    .setTimestamp();
-      
-  const components = [];
-  let currentRow = new ActionRowBuilder();
-
-  for (const service of availableServices) {
-    const emoji = await getOrFetchEmoji(guild, service);
-    const stockCount = stockData[service.id] || 0;
-    
-    // Custom ID for Targxt collab check
-    const button = new ButtonBuilder()
-      .setCustomId(`gen_targxt_${service.id}`)
-      .setLabel(`${service.label.substring(0, 60)} [${stockCount}]`)
-      .setStyle(ButtonStyle.Danger);
-
-    if (typeof emoji === 'string') {
-      button.setEmoji(emoji);
-    } else if (emoji && emoji.id) {
-      button.setEmoji(emoji.id);
-    }
-
-    currentRow.addComponents(button);
-  }
-  
-  if (availableServices.length > 0) {
-    components.push(currentRow);
-  }
-
-  panels.push({ embed, components });
-  return panels;
-}
-
-/**
- * Build PrimeMail (Temp OTP) Panel
- */
-function buildPrimeMailPanel() {
-  const embed = new EmbedBuilder()
-    .setTitle('PrimeMail - Temp Inbox')
-    .setDescription(
-      'Need an email for verification?\n\n' +
-      'Generate a temporary email address to receive OTPs and bypass verifications easily. Your inbox is private and disposable.'
-    )
-    .setColor(COLORS.INFO)
-    .setImage(PANEL_BANNER_URL)
-    .setFooter({ 
-      text: '⚡ PrimeGen.eu PrimeMail • OTP Service',
-      iconURL: 'https://i.goopics.net/2eukvn.gif'
-    })
-    .setTimestamp();
-
-  const buttonRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('primemail_generate')
-      .setLabel('Generate Temp Mail')
-      .setStyle(ButtonStyle.Primary)
-  );
-
-  return { embed, components: [buttonRow] };
-}
-
-module.exports = { command, execute, buildBasicPanels, buildPremiumPanel, buildPrimePanel, buildTargxtPanel, buildPrimeMailPanel };
+module.exports = { 
+  command, 
+  execute, 
+  buildBasicPanels, 
+  buildPrimePanel, 
+  buildPrimeStockPanel, 
+  buildStockPanel, 
+  buildFAQPanel, 
+  buildShopPanel, 
+  buildVipPricePanel 
+};

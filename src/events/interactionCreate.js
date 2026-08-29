@@ -165,7 +165,7 @@ async function handleAutocomplete(interaction) {
  */
 async function handleButton(interaction) {
   // Import button handler
-  const { handleButton: buttonHandler } = require('./buttonHandlers');
+  const { handleButton: buttonHandler } = require('../components/buttons');
   
   try {
     logger.debug('Interaction', `Handling button: ${interaction.customId}`);
@@ -326,3 +326,5 @@ async function handleModalSubmit(interaction) {
 }
 
 module.exports = { handleInteraction };
+
+

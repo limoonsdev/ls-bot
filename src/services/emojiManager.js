@@ -1,8 +1,9 @@
 /**
  * =====================================================
- * EMOJI MANAGER - Auto-import from assets
+ * EMOJI MANAGER - AUTO-IMPORT & DISCORD INTEGRATION
  * =====================================================
- * Automatically imports service icons as emojis
+ * Automatically manages, imports, and resolves service icons
+ * directly from local assets or remote storage.
  */
 
 const fs = require('fs');
@@ -23,22 +24,18 @@ async function loadServiceEmojis(guild) {
   }
 
   const assetsDir = path.join(process.cwd(), 'assets');
-  
   if (!fs.existsSync(assetsDir)) {
-    logger.warn('EmojiManager', 'Assets directory not found');
     return emojiCache;
   }
 
   const files = fs.readdirSync(assetsDir).filter(f => f.endsWith('.png'));
-  
   if (files.length === 0) {
-    logger.warn('EmojiManager', 'No PNG files found in assets/');
     return emojiCache;
   }
 
-  logger.info('EmojiManager', `Found ${files.length} service icons`);
+  logger.info('EmojiManager', `Found ${files.length} local service icons`);
 
-  // Get existing emojis
+  // Fetch current emojis
   const existingEmojis = await guild.emojis.fetch().catch(() => new Map());
 
   for (const file of files) {
@@ -46,38 +43,34 @@ async function loadServiceEmojis(guild) {
       const serviceName = path.basename(file, '.png');
       const emojiName = `service_${serviceName}`;
 
-      // Check if emoji already exists
-      const existingEmoji = existingEmojis.find(e => e.name === emojiName);
+      const existingEmoji = existingEmojis.find(e => 
+        e.name === emojiName || e.name === `ng_${serviceName}` || e.name === serviceName
+      );
       
       if (existingEmoji) {
         emojiCache.set(serviceName, existingEmoji.toString());
-        logger.debug('EmojiManager', `Emoji already exists: ${emojiName}`);
         continue;
       }
 
-      // Check emoji limit
       if (existingEmojis.size >= 50) {
         logger.warn('EmojiManager', 'Server emoji limit reached (50)');
         break;
       }
 
-      // Upload emoji
+      // Upload local emoji
       const filePath = path.join(assetsDir, file);
       const emoji = await guild.emojis.create({
         attachment: filePath,
         name: emojiName,
-        reason: 'Service icon auto-import'
+        reason: 'DreamShop service icon auto-import'
       });
 
       emojiCache.set(serviceName, emoji.toString());
       logger.info('EmojiManager', `Uploaded emoji: ${emojiName}`);
 
-      // Rate limit protection
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 800));
     } catch (error) {
-      logger.error('EmojiManager', `Failed to upload emoji for ${file}`, { 
-        error: error.message 
-      });
+      logger.debug('EmojiManager', `Could not upload emoji for ${file}: ${error.message}`);
     }
   }
 
@@ -87,39 +80,61 @@ async function loadServiceEmojis(guild) {
 
 /**
  * Get or fetch custom emoji from guild
- * This is the MAIN function used by all commands
+ * Supports local assets, guild cache, and fallback emojis
  */
 async function getOrFetchEmoji(guild, service) {
-  if (!guild) return service.defaultEmoji;
+  if (!service) return '📦';
+  if (!guild) return service.defaultEmoji || '📦';
 
-  // Check if guild has emoji permissions
-  if (!guild.members.me?.permissions.has(PermissionFlagsBits.ManageEmojisAndStickers)) {
-    logger.warn('EmojiManager', `No emoji permissions in guild ${guild.id}`);
-    return service.defaultEmoji;
-  }
+  const cleanId = service.id.replace('_prime', '');
 
-  // Try to find existing emoji
-  const existingEmoji = guild.emojis.cache.find(e => e.name === service.emojiName || e.name === `service_${service.id}`);
+  // 1. Check in-memory cache
+  if (emojiCache.has(service.id)) return emojiCache.get(service.id);
+  if (emojiCache.has(cleanId)) return emojiCache.get(cleanId);
+
+  // 2. Check guild emojis
+  const existingEmoji = guild.emojis.cache.find(e => 
+    e.name === service.emojiName || 
+    e.name === `service_${service.id}` || 
+    e.name === `service_${cleanId}` ||
+    e.name === `ng_${cleanId}` ||
+    e.name.toLowerCase() === cleanId.toLowerCase()
+  );
+
   if (existingEmoji) {
+    emojiCache.set(service.id, existingEmoji.toString());
     return existingEmoji;
   }
 
-  // Try to create it from GitHub
-  try {
-    const attachmentUrl = `https://raw.githubusercontent.com/limoonsdev/Zip/main/assets/${service.id}.png`;
-    
-    const newEmoji = await guild.emojis.create({
-      attachment: attachmentUrl,
-      name: service.emojiName,
-      reason: 'PrimeGen service icon'
-    });
-    
-    logger.info('EmojiManager', `Created custom emoji: ${service.emojiName}`);
-    return newEmoji;
-  } catch (error) {
-    logger.warn('EmojiManager', `Could not create emoji ${service.emojiName}`, { error: error.message });
-    return service.defaultEmoji;
+  // 3. Try to upload from local assets if bot has permissions
+  if (guild.members.me?.permissions.has(PermissionFlagsBits.ManageEmojisAndStickers)) {
+    try {
+      const localFile = path.join(process.cwd(), 'assets', `${cleanId}.png`);
+      let attachmentSource = null;
+
+      if (fs.existsSync(localFile)) {
+        attachmentSource = localFile;
+      } else if (service.iconUrl) {
+        attachmentSource = service.iconUrl;
+      }
+
+      if (attachmentSource && guild.emojis.cache.size < 50) {
+        const newEmoji = await guild.emojis.create({
+          attachment: attachmentSource,
+          name: service.emojiName || `service_${cleanId}`,
+          reason: 'DreamShop service icon'
+        });
+        
+        emojiCache.set(service.id, newEmoji.toString());
+        logger.info('EmojiManager', `Created custom emoji: ${newEmoji.name}`);
+        return newEmoji;
+      }
+    } catch (error) {
+      logger.debug('EmojiManager', `Could not create emoji for ${service.id}: ${error.message}`);
+    }
   }
+
+  return service.defaultEmoji || '📦';
 }
 
 /**
@@ -141,12 +156,11 @@ function getAllEmojis() {
  */
 function clearEmojiCache() {
   emojiCache.clear();
-  logger.info('EmojiManager', 'Emoji cache cleared');
 }
 
 module.exports = {
   loadServiceEmojis,
-  getOrFetchEmoji,  // ← EXPORTED NOW!
+  getOrFetchEmoji,
   getServiceEmoji,
   getAllEmojis,
   clearEmojiCache

@@ -1,14 +1,14 @@
 /**
  * =====================================================
- * DISCORD BOT CONSTANTS
+ * DISCORD BOT CONSTANTS - DREAMSHOP EDITION
  * =====================================================
  * Centralized configuration for all bot IDs, limits,
- * and hardcoded values to avoid magic numbers.
+ * and values to avoid magic numbers.
  */
 
 const CONSTANTS = {
   // =====================================================
-  // DISCORD ROLE IDs (Replace with your actual IDs)
+  // DISCORD ROLE IDs
   // =====================================================
   ROLES: {
     VERIFIED: '1532346852203040768',
@@ -132,21 +132,21 @@ const CONSTANTS = {
   }
 };
 
-module.exports = CONSTANTS;
-
 // =====================================================
-// DESIGN & UI CONSTANTS (ULTRA-PREMIUM)
+// DESIGN & UI CONSTANTS (DREAMSHOP ULTRA-PREMIUM)
 // =====================================================
-const PANEL_BANNER_URL = 'https://i.goopics.net/2eukvn.gif';
+const PANEL_BANNER_URL = 'https://i.ibb.co/FbpXzSZ7/standard-8.gif';
 
 const COLORS = {
-  FREE: '#00f0ff',        // Cyan (Website Main)
-  PREMIUM: '#ff4785',     // Pink (Website Accent)  
-  SUCCESS: '#00f0ff',     // Cyan
-  ERROR: '#ff4785',       // Pink
-  WARNING: '#FEE75C',     // Yellow
-  INFO: '#00f0ff',        // Cyan
-  BOOST: '#ff4785'        // Pink
+  FREE: '#2B2D31',        // Dark sleek grey
+  PREMIUM: '#FFD700',     // Luxury Gold
+  VIP: '#9B59B6',         // Royal Purple / Diamond
+  SUCCESS: '#57F287',     // Neon Green
+  ERROR: '#ED4245',       // Crimson Red
+  WARNING: '#FEE75C',     // Vivid Yellow
+  INFO: '#5865F2',        // Blurple / Indigo
+  BOOST: '#F47FFF',       // Neon Pink
+  DREAM: '#7289DA'        // Signature DreamShop Blue
 };
 
 const EMOJIS = {
@@ -155,9 +155,11 @@ const EMOJIS = {
   STOCK: '📦', PREMIUM: '👑', FREE: '✨', BOOST: '🚀', VERIFY: '✅',
   USERS: '👥', TIME: '⏱️', RATE: '📊', COOLDOWN: '⏳',
   STREAMING: '🎬', GAMING: '🎮', VPN: '🛡️', MUSIC: '🎵', EMAIL: '📧',
+  STAR: '⭐', DIAMOND: '💎', FIRE: '🔥', LOCK: '🔒', CART: '🛒',
   UP: '<:up:1532399539187617792>', DOWN: '<:down:1532399527418400988>'
 };
 
+module.exports = CONSTANTS;
 module.exports.PANEL_BANNER_URL = PANEL_BANNER_URL;
 module.exports.COLORS = COLORS;
 module.exports.EMOJIS = EMOJIS;

@@ -5,7 +5,7 @@
  * Centralized modal submit handlers
  */
 
-const { getLogger } = require('../utils/logger');
+const { getLogger } = require('../../utils/logger');
 const logger = getLogger();
 
 /**
@@ -20,7 +20,7 @@ function registerModalHandlers(client) {
     try {
       // Config modals
       if (customId.startsWith('config_modal_')) {
-        const config = require('../commands/config');
+        const config = require('../../commands/config');
         return await config.handleModalSubmit(interaction);
       }
 
@@ -39,7 +39,7 @@ function registerModalHandlers(client) {
           
           if (suggestionChannel) {
             const { EmbedBuilder } = require('discord.js');
-            const { COLORS, PANEL_BANNER_URL } = require('../config/constants');
+            const { COLORS, PANEL_BANNER_URL } = require('../../config/constants');
             
             const embed = new EmbedBuilder()
               .setTitle(`💡 New Suggestion: ${title}`)
@@ -50,7 +50,7 @@ function registerModalHandlers(client) {
                 iconURL: interaction.user.displayAvatarURL() 
               })
               .setImage(PANEL_BANNER_URL)
-              .setFooter({ text: 'PrimeGen • Suggestions' })
+              .setFooter({ text: 'DreamShop • Suggestions' })
               .setTimestamp();
               
             await suggestionChannel.send({ embeds: [embed] });
@@ -86,10 +86,10 @@ function registerModalHandlers(client) {
           
           if (announceChannel) {
             const { EmbedBuilder } = require('discord.js');
-            const { COLORS, PANEL_BANNER_URL } = require('../config/constants');
+            const { COLORS, PANEL_BANNER_URL } = require('../../config/constants');
             
             const embed = new EmbedBuilder()
-              .setTitle('📢 PrimeGen - Announcement')
+              .setTitle('📢 DreamShop - Announcement')
               .setDescription(
                 `🇬🇧 **${titleEn}**\n${descEn}\n\n` +
                 `🇫🇷 **${titleFr}**\n${descFr}`
@@ -140,9 +140,9 @@ function registerModalHandlers(client) {
         const totalPrice = (quantity * pricePerBoost).toFixed(2);
         
         try {
-          const { query } = require('../database/hybridPool');
+          const { query } = require('../../database/hybridPool');
           const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-          const { COLORS } = require('../config/constants');
+          const { COLORS } = require('../../config/constants');
           
           const orderId = 'ORD-' + Math.random().toString(36).substr(2, 6).toUpperCase();
           const robuxRate = parseFloat(process.env.SHOP_ROBUX_RATE || '100');
@@ -158,7 +158,7 @@ function registerModalHandlers(client) {
           );
           
           const embed = new EmbedBuilder()
-            .setTitle('🛒 Checkout - PrimeGen')
+            .setTitle('🛒 Checkout - DreamShop')
             .setDescription(`You are ordering **${quantity}x Boosts** for **${duration} Month(s)**.\n\n` +
               '**Total to pay:**\n' +
               `💶 **${totalPrice} EUR** (PayPal / Rewarble)\n` +
@@ -204,9 +204,9 @@ function registerModalHandlers(client) {
         }
         
         try {
-          const { query } = require('../database/hybridPool');
+          const { query } = require('../../database/hybridPool');
           const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-          const { COLORS } = require('../config/constants');
+          const { COLORS } = require('../../config/constants');
           
           const orderDb = await query('SELECT * FROM orders WHERE paypal_order_id = $1', [orderId]);
           const order = orderDb.rows[0];
@@ -246,7 +246,7 @@ function registerModalHandlers(client) {
               '⚠️ *Please verify this payment carefully before clicking Approve.*'
             )
             .setColor(COLORS.WARNING)
-            .setFooter({ text: 'PrimeGen Staff System' })
+            .setFooter({ text: 'DreamShop Staff System' })
             .setTimestamp();
             
           if (imageUrl && imageUrl.startsWith('http')) {
@@ -285,7 +285,7 @@ function registerModalHandlers(client) {
         const accountsInput = interaction.fields.getTextInputValue('prime_accounts');
 
         // Validate service
-        const { getServiceById } = require('../config/services');
+        const { getServiceById } = require('../../config/services');
         const service = getServiceById(serviceId);
 
         if (!service || service.tier !== 'prime') {
@@ -303,9 +303,9 @@ function registerModalHandlers(client) {
           });
         }
 
-        const { query } = require('../database/hybridPool');
-        const { EMOJIS, COLORS, PANEL_BANNER_URL } = require('../config/constants');
-        const { getOrFetchEmoji } = require('../services/emojiManager');
+        const { query } = require('../../database/hybridPool');
+        const { EMOJIS, COLORS, PANEL_BANNER_URL } = require('../../config/constants');
+        const { getOrFetchEmoji } = require('../../services/emojiManager');
 
         let added = 0;
         let failed = 0;
@@ -344,8 +344,8 @@ function registerModalHandlers(client) {
           color: COLORS.SUCCESS,
           image: { url: PANEL_BANNER_URL },
           footer: {
-            text: 'PrimeGen - Prime Stock Manager',
-            iconURL: 'https://i.goopics.net/2eukvn.gif'
+            text: 'DreamShop - Prime Stock Manager',
+            iconURL: PANEL_BANNER_URL
           },
           timestamp: new Date().toISOString()
         };
@@ -384,3 +384,5 @@ function registerModalHandlers(client) {
 module.exports = {
   registerModalHandlers
 };
+
+

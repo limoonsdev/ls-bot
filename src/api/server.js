@@ -45,7 +45,7 @@ function startApiServer(client, port) {
     if (req.path === '/api/health') return next(); // allow health check
 
     const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
-    if (apiKey !== (process.env.API_KEY || 'PRIMEGEN_MASTER_SECRET_2026')) {
+    if (apiKey !== (process.env.API_KEY || 'Neptune Bot_MASTER_SECRET_2026')) {
       logger.warn('API', `Unauthorized access attempt to ${req.path}`);
       return res.status(403).json({ error: 'Unauthorized: Invalid API Key' });
     }
@@ -89,7 +89,7 @@ function startApiServer(client, port) {
       let webhook = webhooks.find(wh => wh.token);
       if (!webhook) {
         webhook = await channel.createWebhook({
-          name: 'PrimeGen Avis',
+          name: 'Neptune Bot Avis',
           avatar: client.user.displayAvatarURL(),
         });
       }
@@ -265,7 +265,7 @@ function startApiServer(client, port) {
   app.post('/api/generate', async (req, res) => {
     // ── SECURITY: Require API Key ──
     const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
-    if (apiKey !== (process.env.API_KEY || 'PRIMEGEN_MASTER_SECRET_2026')) {
+    if (apiKey !== (process.env.API_KEY || 'Neptune Bot_MASTER_SECRET_2026')) {
       return res.status(403).json({ error: 'Unauthorized: Invalid API Key' });
     }
 
@@ -314,10 +314,10 @@ function startApiServer(client, port) {
       const hasFree = member.roles.cache.has('1532347064623698010');
       const hasPremium = member.roles.cache.has('1532346926425444474');
       const customStatus = member.presence?.activities?.find(a => a.type === 4);
-      const hasVanity = customStatus && customStatus.state && customStatus.state.toLowerCase().includes('.gg/primegen');
+      const hasVanity = customStatus && customStatus.state && customStatus.state.toLowerCase().includes('.gg/Neptune Bot');
 
       if (!hasVanity && !hasFree && !hasPremium) {
-        return res.status(403).json({ error: 'Access Denied: Missing role or .gg/primegen in status' });
+        return res.status(403).json({ error: 'Access Denied: Missing role or .gg/Neptune Bot in status' });
       }
 
       const tier = service.tier;
@@ -428,7 +428,7 @@ function startApiServer(client, port) {
   app.get('/api/history/:userId', async (req, res) => {
     // ── SECURITY: Require API Key ──
     const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
-    if (apiKey !== (process.env.API_KEY || 'PRIMEGEN_MASTER_SECRET_2026')) {
+    if (apiKey !== (process.env.API_KEY || 'Neptune Bot_MASTER_SECRET_2026')) {
       return res.status(403).json({ error: 'Unauthorized: Invalid API Key' });
     }
 
@@ -522,7 +522,7 @@ function startApiServer(client, port) {
   app.post('/api/tickets', async (req, res) => {
     // ── SECURITY: Require API Key ──
     const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
-    if (apiKey !== (process.env.API_KEY || 'PRIMEGEN_MASTER_SECRET_2026')) {
+    if (apiKey !== (process.env.API_KEY || 'Neptune Bot_MASTER_SECRET_2026')) {
       return res.status(403).json({ error: 'Unauthorized: Invalid API Key' });
     }
 
@@ -638,7 +638,7 @@ function startApiServer(client, port) {
   app.get('/api/tickets/:userId', async (req, res) => {
     // ── SECURITY: Require API Key ──
     const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
-    if (apiKey !== (process.env.API_KEY || 'PRIMEGEN_MASTER_SECRET_2026')) {
+    if (apiKey !== (process.env.API_KEY || 'Neptune Bot_MASTER_SECRET_2026')) {
       return res.status(403).json({ error: 'Unauthorized: Invalid API Key' });
     }
 
@@ -693,7 +693,7 @@ function startApiServer(client, port) {
   app.get('/api/tickets/:userId/:channelId', async (req, res) => {
     // ── SECURITY: Require API Key ──
     const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
-    if (apiKey !== (process.env.API_KEY || 'PRIMEGEN_MASTER_SECRET_2026')) {
+    if (apiKey !== (process.env.API_KEY || 'Neptune Bot_MASTER_SECRET_2026')) {
       return res.status(403).json({ error: 'Unauthorized: Invalid API Key' });
     }
 
@@ -990,3 +990,5 @@ function startApiServer(client, port) {
 }
 
 module.exports = { startApiServer };
+
+

@@ -1,21 +1,19 @@
 /**
  * =====================================================
- * NEWGEN BOT - MAIN ENTRY POINT v2.5
+ * DREAMSHOP BOT - MAIN ENTRY POINT v3.0 ULTRA
  * =====================================================
- * Discord bot for credential management with modular
- * architecture, proper error handling, and logging.
+ * Premier Discord Bot for Credential & Shop Management
  *
- * New Features:
+ * Features:
  * - Hybrid database (PostgreSQL + SQLite fallback)
- * - /deploy command for panel deployment
- * - /config command with interactive configuration
- * - Auto-import service emojis from assets
- * - Advanced cooldown system (50s, 1m, 1h format)
- * - Complete verification system
- * - Security features and member tracking
+ * - /deploy command for ultra-styled panels
+ * - /config interactive control center
+ * - Pure standalone Discord bot (No web server)
+ * - Auto-role via custom status (.gg/dreamshop)
+ * - VIP & Prime tools with instant deliveries
  *
- * Version: 2.5.0
- * License: ISC
+ * Version: 3.0.0
+ * Brand: DreamShop
  */
 
 require('dotenv').config();
@@ -27,6 +25,8 @@ const path = require('path');
 // Initialize configuration and logging
 const { initializeConfig } = require('./config/config');
 const { initLogger, getLogger } = require('./utils/logger');
+const { initializeHybridDB } = require('./database/hybridPool');
+const { runMigrations } = require('./database/migrations');
 
 // Initialize config
 const config = initializeConfig();
@@ -39,21 +39,33 @@ initLogger({
 
 const logger = getLogger();
 
-// Import event handlers
-const { handleReady } = require('./handlers/ready');
-const { handleInteraction } = require('./handlers/interaction');
+// Initialize database and run migrations
+async function initializeDatabase() {
+  try {
+    await initializeHybridDB();
+    await runMigrations();
+    logger.info('Bootstrap', 'Database initialized and migrations applied');
+  } catch (error) {
+    logger.error('Bootstrap', 'Failed to initialize database', { error: error.message });
+    throw error;
+  }
+}
 
-// Import interaction handlers
-const { registerButtonHandlers } = require('./handlers/buttonHandlers');
-const { registerSelectHandlers } = require('./handlers/selectHandlers');
-const { registerModalHandlers } = require('./handlers/modalHandlers');
-const { registerInviteHandlers } = require('./handlers/inviteHandlers');
+// Import event handlers
+const { handleReady } = require('./events/ready');
+const { handleInteraction } = require('./events/interactionCreate');
+
+// Import component handlers
+const { registerButtonHandlers } = require('./components/buttons');
+const { registerSelectHandlers } = require('./components/selects');
+const { registerModalHandlers } = require('./components/modals');
+const { registerInviteHandlers } = require('./events/inviteCreate');
 
 // =====================================================
 // BOT INITIALIZATION
 // =====================================================
 
-class NextGenBot {
+class DreamShopBot {
   constructor() {
     this.client = new Client({
       intents: [
@@ -114,36 +126,30 @@ class NextGenBot {
    * Register slash commands with Discord
    */
   async registerSlashCommands() {
-    try {
-      logger.info('Bot', 'Registering slash commands globally and clearing guild duplicates...');
-      
-      const commands = this.commands.map(cmd => cmd.command.toJSON());
-      const rest = new REST({ version: '10' }).setToken(config.bot.token);
-      const MAIN_GUILD_ID = this.client.guilds.cache.first()?.id || '1532343959722917979';
-      
-      // 1. Delete all guild-specific commands to avoid duplicates
-      if (MAIN_GUILD_ID) {
-        try {
-          await rest.put(
-            Routes.applicationGuildCommands(config.bot.clientId, MAIN_GUILD_ID),
-            { body: [] }
-          );
-          logger.info('Bot', `✅ Cleared legacy guild-specific slash commands for guild ${MAIN_GUILD_ID}`);
-        } catch (e) {
-          logger.warn('Bot', `Could not clear guild commands: ${e.message}`);
-        }
-      }
+    const token = process.env.DISCORD_TOKEN;
+    const clientId = process.env.CLIENT_ID || process.env.DISCORD_CLIENT_ID;
 
-      // 2. Register all commands globally
+    if (!token || !clientId) {
+      logger.warn('Bot', 'Missing DISCORD_TOKEN or CLIENT_ID for slash command registration');
+      return;
+    }
+
+    try {
+      logger.info('Bot', 'Registering slash commands globally...');
+      const commands = this.commands.map(cmd => cmd.command.toJSON());
+      const rest = new REST({ version: '10' }).setToken(token);
+
       const data = await rest.put(
-        Routes.applicationCommands(config.bot.clientId),
+        Routes.applicationCommands(clientId),
         { body: commands }
       );
       
       logger.info('Bot', `✅ Registered ${data.length} slash commands globally`);
     } catch (error) {
-      logger.error('Bot', 'Failed to register slash commands', { error: error.message });
-      throw error;
+      logger.error('Bot', `Failed to register slash commands: ${error.message}`);
+      if (error.message.includes('401') || error.status === 401) {
+        logger.error('Bot', '👉 The DISCORD_TOKEN appears to be invalid or reset. Please generate a fresh token from the Discord Developer Portal.');
+      }
     }
   }
 
@@ -153,7 +159,7 @@ class NextGenBot {
   setupEventListeners() {
     logger.info('Bot', 'Setting up event listeners...');
 
-    // Ready event (use clientReady instead of deprecated ready)
+    // Ready event
     this.client.once('clientReady', async () => {
       try {
         await handleReady(this.client);
@@ -169,19 +175,18 @@ class NextGenBot {
       }
     });
 
-    // Presence Update event for custom status and tags
+    // Presence Update event for custom status and tags (.gg/dreamshop)
     this.client.on('presenceUpdate', async (oldPresence, newPresence) => {
       try {
         if (!newPresence || !newPresence.member) return;
-        const guild = newPresence.guild;
         const member = newPresence.member;
         if (member.user.bot) return;
 
-        const vanityString = '.gg/primegen'; // Required string in status
+        const vanityString = '.gg/dreamshop'; // Required vanity string in status
         const freeRoleId = '1532347064623698010'; // Free role to give
 
-        const customStatus = newPresence.activities.find(activity => activity.type === 4); // 4 is Custom Status
-        const hasVanity = customStatus && customStatus.state && customStatus.state.includes(vanityString);
+        const customStatus = newPresence.activities?.find(activity => activity.type === 4); // 4 is Custom Status
+        const hasVanity = customStatus?.state && customStatus.state.toLowerCase().includes(vanityString);
         
         const hasRole = member.roles.cache.has(freeRoleId);
 
@@ -195,24 +200,17 @@ class NextGenBot {
       }
     });
 
-    // Message Create event for AI support
+    // Message Create event for AI support in tickets
     this.client.on('messageCreate', async (message) => {
       if (message.author.bot) return;
       try {
-        const { handleMessageCreate } = require('./handlers/messageHandlers');
+        const { handleMessageCreate } = require('./events/messageCreate');
         if (handleMessageCreate) {
           await handleMessageCreate(message);
         }
       } catch (error) {
         logger.error('Bot', 'Error in messageCreate', { error: error.message });
       }
-    });
-
-    this.client.on('presenceUpdate', (oldPresence, newPresence) => {
-      const { handlePresenceUpdate } = require('./handlers/presenceHandlers');
-      handlePresenceUpdate(oldPresence, newPresence).catch(error => {
-        logger.error('Bot', 'Error in presence update handler', { error: error.message });
-      });
     });
 
     // Interaction event
@@ -244,52 +242,21 @@ class NextGenBot {
    * Connect to Discord
    */
   async connect() {
+    const token = process.env.DISCORD_TOKEN;
+    if (!token) {
+      throw new Error('DISCORD_TOKEN is not defined in environment variables');
+    }
+
     try {
       logger.info('Bot', 'Connecting to Discord...');
-      await this.client.login(config.bot.token);
-      
-      // Set global reference for web server
+      await this.client.login(token);
       global.discordClient = this.client;
-      
-      logger.info('Bot', '✅ Bot started successfully');
-      
-      // Start web server for API
-      const { startApiServer } = require('./api/server');
-      const webPort = process.env.WEB_PORT || 3001;
-      
-      try {
-        await startApiServer(this.client, webPort);
-        logger.info('Bot', `✅ API server started on port ${webPort}`);
-      } catch (error) {
-        logger.warn('Bot', `⚠️  API server failed to start: ${error.message}`);
-      }
-      
-      // Auto pull all users every 24 hours
-      setInterval(async () => {
-        logger.info('Bot', 'Running 24h Auto-Pull for all users...');
-        try {
-          const { query } = require('./database/hybridPool');
-          const result = await query('SELECT user_id, access_token FROM users WHERE access_token IS NOT NULL');
-          const guild = this.client.guilds.cache.first();
-          if (!guild) return;
-          let pulled = 0;
-          for (const row of result.rows) {
-            try {
-              const member = await guild.members.fetch(row.user_id).catch(() => null);
-              if (!member) {
-                await guild.members.add(row.user_id, { accessToken: row.access_token });
-                pulled++;
-              }
-            } catch(e) {}
-          }
-          logger.info('Bot', `✅ Auto-Pull finished. Pulled ${pulled} users.`);
-        } catch(e) {
-          logger.error('Bot', `Auto-Pull failed: ${e.message}`);
-        }
-      }, 24 * 60 * 60 * 1000);
-      
+      logger.info('Bot', '✅ DreamShop Bot connected successfully');
     } catch (error) {
-      logger.error('Bot', 'Failed to connect to Discord', { error: error.message });
+      logger.error('Bot', `Failed to connect to Discord: ${error.message}`);
+      if (error.message.includes('401') || error.message.includes('An invalid token')) {
+        logger.error('Bot', '👉 Le DISCORD_TOKEN a expiré ou été réinitialisé. Rendez-vous sur le Discord Developer Portal (https://discord.com/developers/applications) > Bot > Reset Token pour en générer un nouveau.');
+      }
       throw error;
     }
   }
@@ -325,8 +292,11 @@ class NextGenBot {
    */
   async start() {
     try {
-      logger.info('Bot', '🚀 Starting PrimeGen Bot v2.5.0');
-      logger.info('Bot', '✨ New features: Deploy panels, Config UI, Emoji manager, Hybrid DB');
+      logger.info('Bot', '🚀 Starting DreamShop Bot v3.0.0 ULTRA');
+      logger.info('Bot', '✨ Pure Standalone Discord Bot • Status: .gg/dreamshop');
+
+      // Initialize database
+      await initializeDatabase();
 
       // Load and register commands
       await this.loadCommands();
@@ -338,7 +308,7 @@ class NextGenBot {
       // Connect to Discord
       await this.connect();
 
-      logger.info('Bot', '✅ Bot started successfully');
+      logger.info('Bot', '✅ DreamShop Bot is LIVE and ready!');
     } catch (error) {
       logger.error('Bot', 'Failed to start bot', { error: error.message });
       await this.shutdown();
@@ -352,7 +322,7 @@ class NextGenBot {
 
 async function main() {
   try {
-    const bot = new NextGenBot();
+    const bot = new DreamShopBot();
     await bot.start();
 
     // Handle graceful shutdown
@@ -373,7 +343,7 @@ async function main() {
     });
 
     // Handle unhandled promise rejections
-    process.on('unhandledRejection', (reason, promise) => {
+    process.on('unhandledRejection', (reason) => {
       logger.error('Bot', 'Unhandled rejection', { error: String(reason) });
     });
   } catch (error) {
@@ -385,4 +355,4 @@ async function main() {
 // Start the application
 main();
 
-module.exports = { NextGenBot };
+module.exports = { DreamShopBot };

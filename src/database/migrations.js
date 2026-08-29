@@ -387,3 +387,5 @@ async function createVerifiedUsersTable() {
     )
   `);
 }
+
+

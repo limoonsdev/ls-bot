@@ -4,25 +4,25 @@ const { parseTime } = require('../utils/timeParser');
 
 const command = new SlashCommandBuilder()
   .setName('giveaway')
-  .setDescription('🎉 Start an advanced giveaway')
+  .setDescription('🎉 Lancer un concours / giveaway')
   .setDefaultMemberPermissions('8')
   .addStringOption(option =>
     option.setName('prize')
-      .setDescription('The prize to win')
+      .setDescription('Le prix à gagner')
       .setRequired(true))
   .addStringOption(option =>
     option.setName('duration')
-      .setDescription('Giveaway duration (e.g., 1h, 24h, 30m)')
+      .setDescription('Durée du concours (ex: 1h, 24h, 30m)')
       .setRequired(true))
   .addIntegerOption(option =>
     option.setName('winners')
-      .setDescription('Number of winners to pick')
+      .setDescription('Nombre de gagnants')
       .setMinValue(1)
       .setMaxValue(50)
       .setRequired(true))
   .addRoleOption(option =>
     option.setName('ping')
-      .setDescription('Role to ping (default: no ping)')
+      .setDescription('Rôle à mentionner (optionnel)')
       .setRequired(false));
 
 async function execute(interaction) {
@@ -33,28 +33,28 @@ async function execute(interaction) {
   
   const msDuration = parseTime(durationStr);
   if (!msDuration) {
-    return interaction.reply({ content: '❌ Invalid duration format (e.g., 1m, 1h, 24h).', flags: 64 });
+    return interaction.reply({ content: '❌ Format de durée invalide (ex: 1m, 1h, 24h).', flags: 64 });
   }
 
   const endTime = Math.floor((Date.now() + msDuration) / 1000);
 
   const embed = new EmbedBuilder()
-    .setTitle('🎉 **PRIMEGEN GIVEAWAY** 🎉')
+    .setTitle('🎉 **DreamShop GIVEAWAY** 🎉')
     .setDescription(
-      `> 🎁 **Prize:** **${prize}**\n` +
-      `> 🏆 **Winner(s):** \`${winnersCount}\`\n` +
-      `> ⏳ **Ends:** <t:${endTime}:R> (<t:${endTime}:f>)\n` +
-      `> 👑 **Hosted by:** ${interaction.user}\n\n` +
-      '**To participate:**\n' +
-      'React with 🎉 under this message!'
+      `> 🎁 **Prix:** **${prize}**\n` +
+      `> 🏆 **Gagnant(s):** \`${winnersCount}\`\n` +
+      `> ⏳ **Fin:** <t:${endTime}:R> (<t:${endTime}:f>)\n` +
+      `> 👑 **Organisé par:** ${interaction.user}\n\n` +
+      '**Pour participer :**\n' +
+      'Réagissez avec 🎉 sous ce message !'
     )
     .setColor(COLORS.PREMIUM)
     .setImage(PANEL_BANNER_URL)
-    .setFooter({ text: 'PrimeGen • Giveaway System' })
+    .setFooter({ text: 'DreamShop • Giveaway System', iconURL: PANEL_BANNER_URL })
     .setTimestamp();
     
   const pingText = pingRole ? `<@&${pingRole.id}>` : '';
-  const message = await interaction.reply({ content: `🎉 **NEW GIVEAWAY!** ${pingText}`, embeds: [embed], withResponse: true });
+  const message = await interaction.reply({ content: `🎉 **NOUVEAU GIVEAWAY !** ${pingText}`, embeds: [embed], fetchReply: true });
   await message.react('🎉');
 
   // Wait for the giveaway to end
@@ -67,19 +67,18 @@ async function execute(interaction) {
       if (!reaction) return;
       
       const users = await reaction.users.fetch();
-      // Exclude bots
       const validParticipants = Array.from(users.filter(u => !u.bot).values());
       
       if (validParticipants.length === 0) {
         const noParticipantsEmbed = new EmbedBuilder()
-          .setTitle('🎉 **GIVEAWAY CANCELLED**')
-          .setDescription(`> 🎁 **Prize:** **${prize}**\n\nNobody participated in the giveaway!`)
+          .setTitle('🎉 **GIVEAWAY TERMINÉ**')
+          .setDescription(`> 🎁 **Prix:** **${prize}**\n\nAucun participant au giveaway !`)
           .setColor(COLORS.ERROR)
-          .setFooter({ text: 'PrimeGen • Giveaway System' })
+          .setFooter({ text: 'DreamShop • Giveaway System', iconURL: PANEL_BANNER_URL })
           .setTimestamp();
         
-        await fetchedMessage.edit({ content: '~~🎉 **NEW GIVEAWAY!**~~ (Ended)', embeds: [noParticipantsEmbed] });
-        return interaction.channel.send({ content: `🥲 No one participated in the giveaway for **${prize}**...` });
+        await fetchedMessage.edit({ content: '~~🎉 **NOUVEAU GIVEAWAY !**~~ (Terminé)', embeds: [noParticipantsEmbed] });
+        return interaction.channel.send({ content: `🥲 Personne n'a participé au concours pour **${prize}**...` });
       }
 
       // Pick random winners
@@ -95,19 +94,19 @@ async function execute(interaction) {
       const winnersMention = winners.map(w => `<@${w.id}>`).join(', ');
 
       const endEmbed = new EmbedBuilder()
-        .setTitle('🎉 **GIVEAWAY ENDED** 🎉')
+        .setTitle('🎉 **GIVEAWAY TERMINÉ** 🎉')
         .setDescription(
-          `> 🎁 **Prize:** **${prize}**\n` +
-          `> 🏆 **Winner(s):** ${winnersMention}\n` +
-          `> 👑 **Hosted by:** ${interaction.user}`
+          `> 🎁 **Prix:** **${prize}**\n` +
+          `> 🏆 **Gagnant(s):** ${winnersMention}\n` +
+          `> 👑 **Organisé par:** ${interaction.user}`
         )
         .setColor(COLORS.SUCCESS)
         .setImage(PANEL_BANNER_URL)
-        .setFooter({ text: 'PrimeGen • Giveaway System' })
+        .setFooter({ text: 'DreamShop • Giveaway System', iconURL: PANEL_BANNER_URL })
         .setTimestamp();
 
-      await fetchedMessage.edit({ content: '🎉 **GIVEAWAY ENDED!**', embeds: [endEmbed] });
-      await interaction.channel.send({ content: `Congratulations ${winnersMention}! You won the **${prize}**! 🎊\n*Please open a ticket to claim your prize!*` });
+      await fetchedMessage.edit({ content: '🎉 **GIVEAWAY TERMINÉ !**', embeds: [endEmbed] });
+      await interaction.channel.send({ content: `Félicitations ${winnersMention} ! Vous avez gagné **${prize}** ! 🎊\n*Ouvrez un ticket pour réclamer votre récompense !*` });
     } catch (error) {
       console.error('Error ending giveaway:', error);
     }

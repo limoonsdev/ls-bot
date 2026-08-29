@@ -1,7 +1,7 @@
 {
-  "name": "primegen-backend",
-  "version": "1.0.0",
-  "description": "PrimeGen Bot Backend API",
+  "name": "dreamshop-bot",
+  "version": "3.0.0",
+  "description": "DreamShop Discord Bot Ultra",
   "main": "src/index.js",
   "engines": {
     "node": "20.x"

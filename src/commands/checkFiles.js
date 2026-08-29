@@ -18,11 +18,12 @@ const command = new SlashCommandBuilder()
 
 async function execute(interaction) {
   const embed = new EmbedBuilder()
-    .setTitle('🚧 AlphaChecker (Coming Soon)')
-    .setDescription(`> ${EMOJIS.INFO} **The advanced file checking system is currently under development.**\n> It will be available very soon with premium proxies and ultra-fast validation!`)
+    .setTitle('🚧 DreamShop Checker (En Développement)')
+    .setDescription(`> ${EMOJIS.INFO} **Le système de check de fichiers est en cours de développement.**\n> Il sera bientôt disponible avec proxies haute vitesse et validation ultra-rapide !`)
     .setColor(COLORS.WARNING)
     .setImage(PANEL_BANNER_URL)
-    .setFooter({ text: 'PrimeGen - Under Construction' });
+    .setFooter({ text: 'DreamShop - Under Construction', iconURL: PANEL_BANNER_URL })
+    .setTimestamp();
 
   await interaction.reply({ embeds: [embed], flags: 64 });
 }
@@ -36,7 +37,7 @@ async function autocomplete(interaction) {
     .slice(0, 25)
     .map(service => ({ name: `${service.defaultEmoji} ${service.label}`, value: service.id }));
     
-  await interaction.respond(choices);
+  await interaction.respond(choices).catch(() => {});
 }
 
 module.exports = {

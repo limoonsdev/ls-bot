@@ -24,7 +24,7 @@ async function resolveLogChannel(guild) {
 
     // Fallback: Find a channel with a standard log name
     const fallbackChannel = guild.channels.cache.find(c => 
-      c.isTextBased() && ['logs', 'gen-logs', 'logs-gen', 'log', 'primegen-logs', 'bot-logs'].includes(c.name.toLowerCase())
+      c.isTextBased() && ['logs', 'gen-logs', 'logs-gen', 'log', 'dreamshop-logs', 'bot-logs'].includes(c.name.toLowerCase())
     );
 
     return fallbackChannel || null;
@@ -43,10 +43,10 @@ async function sendDiscordLog(guild, action, description, color = COLORS.INFO) {
     if (!channel) return;
 
     const embed = new EmbedBuilder()
-      .setTitle(`📝 Log: ${action}`)
+      .setTitle(`📝 DreamShop Log: ${action}`)
       .setDescription(description)
       .setColor(color)
-      .setFooter({ text: 'PrimeGen Logging System', iconURL: PANEL_BANNER_URL })
+      .setFooter({ text: 'DreamShop Logging System', iconURL: PANEL_BANNER_URL })
       .setTimestamp();
 
     await channel.send({ embeds: [embed] }).catch(() => {});
@@ -69,17 +69,26 @@ async function sendGenLog(guild, user, service, combo, tier) {
     if (!channel) return;
 
     const colorMap = {
-      prime: 0xFFD700,
-      premium: 0x9B59B6,
-      free: 0x5865F2
+      prime: '#FFD700',
+      premium: '#9B59B6',
+      free: '#5865F2',
+      vip: '#FF00FF'
+    };
+
+    const tierBadgeMap = {
+      prime: '💎 PRIME HQ',
+      premium: '👑 PREMIUM',
+      free: '✨ FREE',
+      vip: '💎 VIP'
     };
 
     const embed = new EmbedBuilder()
-      .setTitle('🔑 PrimeGen • Account Generated Log')
+      .setTitle('🔑 DreamShop • Journal de Génération de Compte')
       .setColor(colorMap[tier] || COLORS.INFO)
+      .setThumbnail(user.displayAvatarURL({ dynamic: true }))
       .addFields(
         {
-          name: '👤 User',
+          name: '👤 Utilisateur',
           value: `${user} (\`${user.tag}\` | ID: \`${user.id}\`)`,
           inline: false
         },
@@ -89,19 +98,19 @@ async function sendGenLog(guild, user, service, combo, tier) {
           inline: true
         },
         {
-          name: '👑 Tier',
-          value: `\`${tier.toUpperCase()}\``,
+          name: '👑 Grade / Tier',
+          value: `\`${tierBadgeMap[tier] || tier.toUpperCase()}\``,
           inline: true
         },
         {
-          name: '🔑 Combo / Account',
-          value: `\`\`\`\n${combo}\n\`\`\``,
+          name: '🔑 Compte / Identifiants',
+          value: `\`\`\`fix\n${combo}\n\`\`\``,
           inline: false
         }
       )
       .setImage(PANEL_BANNER_URL)
       .setFooter({
-        text: 'PrimeGen • Secure Generation Logging System',
+        text: 'DreamShop • Secure Generation Logging System',
         iconURL: PANEL_BANNER_URL
       })
       .setTimestamp();

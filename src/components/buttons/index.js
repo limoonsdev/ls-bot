@@ -4,13 +4,13 @@
  * =====================================================
  */
 
-const { getLogger } = require('../utils/logger');
-const { EMOJIS } = require('../config/constants');
-const { getServiceById } = require('../config/services');
-const { query } = require('../database/hybridPool');
+const { getLogger } = require('../../utils/logger');
+const { EMOJIS } = require('../../config/constants');
+const { getServiceById } = require('../../config/services');
+const { query } = require('../../database/hybridPool');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const { getOrCreateGuildConfig } = require('../database/models');
-const { formatTime } = require('../utils/timeParser');
+const { getOrCreateGuildConfig } = require('../../database/models');
+const { formatTime } = require('../../utils/timeParser');
 
 const logger = getLogger();
 const userCooldowns = new Map(); // Store cooldowns: userCooldowns.get(userId) = { free: timestamp, premium: timestamp }
@@ -25,7 +25,7 @@ async function handleButton(interaction) {
   const customId = interaction.customId;
 
   try {
-    if (customId.startsWith('gen_free_') || customId.startsWith('gen_premium_') || customId.startsWith('gen_prime_') || customId.startsWith('gen_targxt_')) {
+    if (customId.startsWith('gen_free_') || customId.startsWith('gen_premium_') || customId.startsWith('gen_prime_')) {
       await handleGenButton(interaction);
     } else if (customId === 'lang_fr' || customId === 'lang_en') {
       await handleLanguageSwitch(interaction);
@@ -46,6 +46,10 @@ async function handleButton(interaction) {
       await handleTicketClose(interaction);
     } else if (customId === 'shop_order_boosts') {
       await handleShopOrder(interaction);
+    } else if (customId.startsWith('shop_paypal_paid_')) {
+      await handleShopPaypalPaid(interaction);
+    } else if (customId.startsWith('shop_ltc_check_')) {
+      await handleShopLtcCheck(interaction);
     } else if (customId.startsWith('shop_submit_payment_')) {
       await handleShopSubmitPayment(interaction);
     } else if (customId.startsWith('shop_approve_')) {
@@ -53,20 +57,18 @@ async function handleButton(interaction) {
     } else if (customId.startsWith('shop_reject_')) {
       await handleShopReject(interaction);
     } else if (customId.startsWith('config_')) {
-      const configHandler = require('../commands/config');
+      const configHandler = require('../../commands/config');
       await configHandler.handleConfigButton(interaction);
-    } else if (customId === 'primemail_generate') {
-      const primeMail = require('./primeMail');
-      await primeMail.handlePrimeMailGenerate(interaction);
-    } else if (customId.startsWith('primemail_check_')) {
-      const primeMail = require('./primeMail');
-      await primeMail.handlePrimeMailCheck(interaction);
     } else if (customId === 'prime_stock_upload') {
       await handlePrimeStockUpload(interaction);
     } else if (customId === 'prime_stock_refresh') {
       await handlePrimeStockRefresh(interaction);
     } else if (customId.startsWith('tool_')) {
       await handlePrimeTools(interaction);
+    } else if (customId.startsWith('freegen_')) {
+      await handleFreegenButton(interaction);
+    } else if (customId === 'freegen_prev' || customId === 'freegen_next') {
+      await handleFreegenNav(interaction);
     } else {
       logger.warn('ButtonHandlers', `Unknown button: ${customId}`);
     }
@@ -95,23 +97,13 @@ async function handleGenButton(interaction) {
   const userId = interaction.user.id;
   const now = Date.now();
   const customStatus = interaction.member.presence?.activities.find(a => a.type === 4); // 4 = Custom Status
+  const hasVanity = customStatus && customStatus.state && customStatus.state.toLowerCase().includes('.gg/dreamshop');
+  const hasFreeRole = interaction.member.roles.cache.has('1532347064623698010');
 
-  if (tier === 'targxt') {
-    const hasTargxtVanity = customStatus && customStatus.state && customStatus.state.toLowerCase().includes('.gg/targxt');
-    if (!hasTargxtVanity) {
-      return interaction.editReply({
-        content: '❌ **Access Denied!** You must put `.gg/targxt` in your Discord Custom Status to use the Targxt Collab Generator!'
-      });
-    }
-  } else {
-    const hasVanity = customStatus && customStatus.state && customStatus.state.toLowerCase().includes('.gg/primegen');
-    const hasFreeRole = interaction.member.roles.cache.has('1532347064623698010');
-
-    if (!hasVanity && !hasFreeRole) {
-      return interaction.editReply({
-        content: '❌ **Access Denied!** You must put `.gg/primegen` in your Discord Custom Status to use the generator! (Mandatory even for VIPs 💎)'
-      });
-    }
+  if (!hasVanity && !hasFreeRole) {
+    return interaction.editReply({
+      content: '❌ **Access Denied!** You must put `.gg/dreamshop` in your Discord Custom Status to use the generator! (Mandatory even for VIPs 💎)'
+    });
   }
 
   // Check VIP/Premium role if tier is premium or prime
@@ -127,7 +119,7 @@ async function handleGenButton(interaction) {
   // Fallback: Check custom status directly if role is missing
   if (!hasFreeAccess && interaction.member.presence && interaction.member.presence.activities) {
     for (const activity of interaction.member.presence.activities) {
-      if (activity.type === 4 && activity.state && activity.state.toLowerCase().includes('.gg/primegen')) {
+      if (activity.type === 4 && activity.state && activity.state.toLowerCase().includes('.gg/dreamshop')) {
         hasFreeAccess = true;
         break;
       }
@@ -136,7 +128,7 @@ async function handleGenButton(interaction) {
 
   if (tier === 'free' && !hasFreeAccess) {
     return interaction.editReply({
-      content: '❌ You don\'t have access to this panel! Put `.gg/primegen` in your status or ensure you have the Free role.'
+      content: '❌ You don\'t have access to this panel! Put `.gg/dreamshop` in your status or ensure you have the Free role.'
     });
   }
 
@@ -162,7 +154,7 @@ async function handleGenButton(interaction) {
     }
     
     let userCd = userCooldowns.get(userId) || { free: 0, premium: 0 };
-    let nextAllowed = (tier === 'premium' || tier === 'prime') ? userCd.premium : userCd.free;
+    let nextAllowed = (tier === 'premium' || tier === 'prime') ? userCd.premium : (tier === 'free' ? userCd.free : 0);
     
     if (now < nextAllowed) {
       const remainingMs = nextAllowed - now;
@@ -172,7 +164,7 @@ async function handleGenButton(interaction) {
     }
 
     // Set new cooldown based on tier
-    if (tier === 'free' || tier === 'targxt') userCd.free = now + cdFree;
+    if (tier === 'free') userCd.free = now + cdFree;
     else if (tier === 'premium' || tier === 'prime') userCd.premium = now + cdPremium;
     userCooldowns.set(userId, userCd);
 
@@ -186,9 +178,9 @@ async function handleGenButton(interaction) {
       userDaily = { date: today, free: 0, premium: 0 };
     }
 
-    if ((tier === 'free' || tier === 'targxt') && limitFree !== 0 && userDaily.free >= limitFree) {
+    if (tier === 'free' && limitFree !== 0 && userDaily.free >= limitFree) {
       return interaction.editReply({
-        content: `${EMOJIS.ERROR} **Limite atteinte !** Tu as utilisé toutes tes générations de ce niveau aujourd'hui (${limitFree}/${limitFree}). Reviens demain !`
+        content: `${EMOJIS.ERROR} **Limite atteinte !** Tu as utilisé toutes tes générations Free d'aujourd'hui (${limitFree}/${limitFree}). Reviens demain !`
       });
     } else if ((tier === 'premium' || tier === 'prime') && limitPremium !== 0 && userDaily.premium >= limitPremium) {
       return interaction.editReply({
@@ -197,7 +189,7 @@ async function handleGenButton(interaction) {
     }
 
     // Increment daily usage
-    if (tier === 'free' || tier === 'targxt') userDaily.free += 1;
+    if (tier === 'free') userDaily.free += 1;
     else if (tier === 'premium' || tier === 'prime') userDaily.premium += 1;
     userDailyCounts.set(userId, userDaily);
   }
@@ -234,23 +226,23 @@ async function handleGenButton(interaction) {
 
   try {
     const remainingStock = Math.max(0, stock - 1);
-    const dmEmbed = buildEnglishGenEmbed(service.label, account.combo, account.account_info, remainingStock);
+    const dmEmbed = buildFrenchGenEmbed(service.label, account.combo, account.account_info, remainingStock);
     
     const languageRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('lang_fr')
         .setLabel('🇫🇷 Français')
-        .setStyle(ButtonStyle.Secondary),
+        .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId('lang_en')
         .setLabel('🇬🇧 English')
-        .setStyle(ButtonStyle.Primary)
+        .setStyle(ButtonStyle.Secondary)
     );
 
     await interaction.user.send({ embeds: [dmEmbed], components: [languageRow] });
 
     await interaction.editReply({
-      content: `${EMOJIS.SUCCESS} **${service.label}** sent to your DMs!\n${EMOJIS.INFO} Please check your private messages.`
+      content: `${EMOJIS.SUCCESS} **${service.label}** a été envoyé dans vos messages privés !\n${EMOJIS.INFO} Veuillez vérifier vos DMs.`
     });
 
     logger.info('Gen', `Account generated for ${interaction.user.tag}`, {
@@ -261,7 +253,7 @@ async function handleGenButton(interaction) {
     
     if (interaction.guild) {
       // 1. Send detailed combo log to Discord log channel
-      const { sendGenLog } = require('../utils/discordLogger');
+      const { sendGenLog } = require('../../utils/discordLogger');
       await sendGenLog(
         interaction.guild,
         interaction.user,
@@ -275,7 +267,7 @@ async function handleGenButton(interaction) {
     }
     
     // Save to user_history
-    const { addUserHistory } = require('../database/models');
+    const { addUserHistory } = require('../../database/models');
     await addUserHistory(interaction.user.id, serviceId, 'GENERATION', { combo: account.combo, tier });
 
   } catch (dmError) {
@@ -288,7 +280,7 @@ async function handleGenButton(interaction) {
     );
 
     await interaction.editReply({
-      content: `${EMOJIS.ERROR} Could not send you a DM!\n${EMOJIS.INFO} Please check that your direct messages are open.`
+      content: `${EMOJIS.ERROR} Impossible de vous envoyer un message privé !\n${EMOJIS.INFO} Veuillez ouvrir vos messages privés (Paramètres > Confidentialité) et réessayer.`
     });
   }
 }
@@ -296,46 +288,50 @@ async function handleGenButton(interaction) {
 function buildFrenchGenEmbed(serviceLabel, combo, accountInfo, remainingStock) {
   const { EmbedBuilder } = require('discord.js');
   return new EmbedBuilder()
-    .setTitle(`🎁 PrimeGen • ${serviceLabel} (Compte Généré)`)
+    .setTitle(`🎁 DreamShop • Compte ${serviceLabel}`)
     .setDescription(
-      `**Service :** \`${serviceLabel}\`\n\n` +
-      '**Compte :**\n' +
-      `\`${combo}\`\n\n` +
-      (accountInfo ? `ℹ️ **Information :** ${accountInfo}\n\n` : '') +
-      '💡 **Conseils importants :**\n' +
-      '• Changez le mot de passe immédiatement si possible.\n' +
-      '• Ne partagez pas ce compte avec d\'autres personnes.\n\n' +
-      '⚠️ **RAPPEL OBLIGATOIRE :**\n' +
-      'Vous devez **obligatoirement** laisser un avis / proof dans <#1532367074125545673> sous **24 heures** !\n' +
-      '👉 **Si vous ne le faites pas dans les 24h, vous recevrez un avertissement !**\n\n' +
-      `📦 **Stock restant :** \`${remainingStock}\``
+      `### ⚡ Félicitations ! Voici vos identifiants :\n\n` +
+      `**🛠️ Service :** \`${serviceLabel}\`\n\n` +
+      `**🔑 Compte (Copier-Coller) :**\n` +
+      `\`\`\`fix\n${combo}\n\`\`\`\n` +
+      (accountInfo ? `ℹ️ **Informations :** \`${accountInfo}\`\n\n` : '') +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `⚠️ **RAPPEL OBLIGATOIRE (AVIS SOUS 24H) :**\n` +
+      `> 📝 Vous devez poster un avis dans <#1532367074125545673> sous **24 heures** !\n` +
+      `> 🚨 **Attention :** En cas d'absence d'avis sous 24h, vous recevrez un avertissement.\n\n` +
+      `💡 **Conseils de sécurité :**\n` +
+      `• Modifiez le mot de passe et l'adresse email dès que possible.\n` +
+      `• Ne partagez pas ces identifiants.\n\n` +
+      `📦 **Stock restant en direct :** \`${remainingStock}\``
     )
     .setColor(0x57F287)
-    .setImage('https://i.goopics.net/2eukvn.gif')
-    .setFooter({ text: 'PrimeGen Generator • Statut: .gg/primegen', iconURL: 'https://i.goopics.net/2eukvn.gif' })
+    .setImage('https://i.ibb.co/FbpXzSZ7/standard-8.gif')
+    .setFooter({ text: 'DreamShop Generator • Statut: .gg/dreamshop', iconURL: 'https://i.ibb.co/FbpXzSZ7/standard-8.gif' })
     .setTimestamp();
 }
 
 function buildEnglishGenEmbed(serviceLabel, combo, accountInfo, remainingStock) {
   const { EmbedBuilder } = require('discord.js');
   return new EmbedBuilder()
-    .setTitle(`🎁 PrimeGen • ${serviceLabel} (Generated Account)`)
+    .setTitle(`🎁 DreamShop • ${serviceLabel} Account`)
     .setDescription(
-      `**Service:** \`${serviceLabel}\`\n\n` +
-      '**Account:**\n' +
-      `\`${combo}\`\n\n` +
-      (accountInfo ? `ℹ️ **Information:** ${accountInfo}\n\n` : '') +
-      '💡 **Important Tips:**\n' +
-      '• Change the password immediately if possible.\n' +
-      '• Do not share this account with anyone.\n\n' +
-      '⚠️ **MANDATORY NOTICE:**\n' +
-      'You must leave a review / proof in <#1532367074125545673> within **24 hours**!\n' +
-      '👉 **If you fail to do so within 24h, you will receive a warning!**\n\n' +
-      `📦 **Stock remaining:** \`${remainingStock}\``
+      `### ⚡ Congratulations! Here are your credentials:\n\n` +
+      `**🛠️ Service:** \`${serviceLabel}\`\n\n` +
+      `**🔑 Account (Copy-Paste):**\n` +
+      `\`\`\`fix\n${combo}\n\`\`\`\n` +
+      (accountInfo ? `ℹ️ **Information:** \`${accountInfo}\`\n\n` : '') +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `⚠️ **MANDATORY NOTICE (REVIEW WITHIN 24H):**\n` +
+      `> 📝 You must leave a review / proof in <#1532367074125545673> within **24 hours**!\n` +
+      `> 🚨 **Warning:** If you fail to do so within 24h, you will receive a warning.\n\n` +
+      `💡 **Security Tips:**\n` +
+      `• Change the password and email immediately if possible.\n` +
+      `• Do not share this account with anyone.\n\n` +
+      `📦 **Live stock remaining:** \`${remainingStock}\``
     )
     .setColor(0x5865F2)
-    .setImage('https://i.goopics.net/2eukvn.gif')
-    .setFooter({ text: 'PrimeGen Generator • Status: .gg/primegen', iconURL: 'https://i.goopics.net/2eukvn.gif' })
+    .setImage('https://i.ibb.co/FbpXzSZ7/standard-8.gif')
+    .setFooter({ text: 'DreamShop Generator • Status: .gg/dreamshop', iconURL: 'https://i.ibb.co/FbpXzSZ7/standard-8.gif' })
     .setTimestamp();
 }
 
@@ -345,19 +341,28 @@ async function handleLanguageSwitch(interaction) {
     const embed = interaction.message.embeds[0];
     if (!embed) return interaction.deferUpdate();
 
-    const match = embed.description ? embed.description.match(/```\n?([\s\S]*?)\n?```/) : null;
-    const combo = match ? match[1].trim() : 'N/A';
+    let combo = 'N/A';
+    const match = embed.description ? embed.description.match(/```(?:fix)?\n?([\s\S]*?)\n?```/) : null;
+    if (match) {
+      combo = match[1].trim();
+    } else {
+      const inlineMatch = embed.description ? embed.description.match(/`([^`\n]+:[^`\n]+)`/) : null;
+      if (inlineMatch) combo = inlineMatch[1].trim();
+    }
 
     const rawTitle = embed.title || '';
     const serviceLabel = rawTitle
-      .replace(/^🎁\s*PrimeGen\s*•\s*/, '')
-      .replace(/\s*\((Compte Généré|Generated Account)\)$/, '') || 'Service';
+      .replace(/^🎁\s*DreamShop\s*•\s*/, '')
+      .replace(/^(Compte\s*)/i, '')
+      .replace(/(\s*Account)$/i, '')
+      .replace(/\s*\((Compte Généré|Generated Account)\)$/i, '')
+      .trim() || 'Service';
 
-    const infoMatch = embed.description ? embed.description.match(/ℹ️ \*\*Information? :\*\* (.*?)\n/) : null;
+    const infoMatch = embed.description ? embed.description.match(/ℹ️ \*\*Information[s]? :\*\* `([^`]+)`/) : null;
     const accountInfo = infoMatch ? infoMatch[1] : '';
 
-    const stockMatch = embed.description ? embed.description.match(/📦 \*\*Stock (restant|remaining) :\*\* `?(\d+)`?/) : null;
-    const remainingStock = stockMatch ? stockMatch[2] : '0';
+    const stockMatch = embed.description ? embed.description.match(/📦 \*\*Stock (?:restant en direct|restant|remaining|Live stock remaining) :\*\* `?(\d+)`?/) : null;
+    const remainingStock = stockMatch ? stockMatch[1] : '0';
 
     const newEmbed = isFrench 
       ? buildFrenchGenEmbed(serviceLabel, combo, accountInfo, remainingStock)
@@ -433,14 +438,14 @@ async function handleVerifyButton(interaction) {
     }
     
     await interaction.editReply({
-      content: `${EMOJIS.SUCCESS} **Verification successful!**\n${EMOJIS.INFO} Welcome to PrimeGen!`
+      content: `${EMOJIS.SUCCESS} **Verification successful!**\n${EMOJIS.INFO} Welcome to DreamShop!`
     });
 
     logger.info('Verify', `User verified: ${member.user.tag}`, { guild: interaction.guild.id, user: member.id });
     await sendWelcomeMessage(interaction.guild, member);
     
     if (interaction.guild) {
-      const { sendDiscordLog } = require('../utils/discordLogger');
+      const { sendDiscordLog } = require('../../utils/discordLogger');
       await sendDiscordLog(
         interaction.guild,
         'Member Verified',
@@ -513,7 +518,7 @@ async function handleManualAccept(interaction) {
     await member.send('✅ You have been manually verified by staff. Welcome!').catch(() => {});
     await sendWelcomeMessage(interaction.guild, member);
     
-    const { sendDiscordLog } = require('../utils/discordLogger');
+    const { sendDiscordLog } = require('../../utils/discordLogger');
     await sendDiscordLog(
       interaction.guild,
       'Member Verified',
@@ -578,7 +583,7 @@ async function handleTicketButton(interaction) {
     });
 
     const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-    const { COLORS, PANEL_BANNER_URL } = require('../config/constants');
+    const { COLORS, PANEL_BANNER_URL } = require('../../config/constants');
 
     const ticketEmbed = new EmbedBuilder()
       .setTitle(`🎫 Ticket - ${interaction.user.username}`)
@@ -591,7 +596,7 @@ async function handleTicketButton(interaction) {
       .setColor(COLORS.INFO)
       .setThumbnail(interaction.user.displayAvatarURL())
       .setImage(PANEL_BANNER_URL)
-      .setFooter({ text: 'PrimeGen Support' })
+      .setFooter({ text: 'DreamShop Support' })
       .setTimestamp();
       
     const closeBtn = new ActionRowBuilder().addComponents(
@@ -612,7 +617,7 @@ async function handleTicketButton(interaction) {
       channel: ticketChannel.id
     });
     
-    const { sendDiscordLog } = require('../utils/discordLogger');
+    const { sendDiscordLog } = require('../../utils/discordLogger');
     await sendDiscordLog(
       interaction.guild,
       'Ticket Created',
@@ -646,7 +651,7 @@ async function handleTicketClose(interaction) {
     });
     
     if (interaction.guild) {
-      const { sendDiscordLog } = require('../utils/discordLogger');
+      const { sendDiscordLog } = require('../../utils/discordLogger');
       await sendDiscordLog(
         interaction.guild,
         'Ticket Closed',
@@ -732,51 +737,217 @@ async function handleShopSubmitPayment(interaction) {
   await interaction.showModal(modal);
 }
 
+async function handleShopPaypalPaid(interaction) {
+  const orderId = interaction.customId.replace('shop_paypal_paid_', '');
+  await interaction.deferReply({ flags: 64 });
+
+  try {
+    const { query } = require('../../database/hybridPool');
+    const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+    const { COLORS, PANEL_BANNER_URL } = require('../../config/constants');
+
+    const orderDb = await query('SELECT * FROM orders WHERE paypal_order_id = $1', [orderId]);
+    const order = orderDb.rows[0];
+
+    if (!order) {
+      return interaction.editReply({ content: '❌ Commande introuvable.' });
+    }
+
+    await query('UPDATE orders SET status = $1, payment_method = $2, updated_at = CURRENT_TIMESTAMP WHERE paypal_order_id = $3', ['PENDING_VERIFICATION', 'PAYPAL', orderId]);
+
+    const staffEmbed = new EmbedBuilder()
+      .setTitle('🚨 PAIEMENT PAYPAL SIGNALÉ (À VÉRIFIER)')
+      .setDescription(
+        `Le client <@${interaction.user.id}> a indiqué avoir envoyé son paiement PayPal !\n\n` +
+        `> 👤 **Client :** <@${interaction.user.id}> (\`${interaction.user.tag}\` | \`${interaction.user.id}\`)\n` +
+        `> 📦 **Article :** \`${order.product}\`\n` +
+        `> 💶 **Montant :** \`${order.price} €\`\n` +
+        `> 📝 **NOTE OBLIGATOIRE :** \`${orderId}\`\n\n` +
+        `⚠️ **Action Staff :** Vérifiez sur votre compte PayPal que la transaction de **${order.price}€** avec la note **${orderId}** a bien été reçue.`
+      )
+      .setColor(COLORS.WARNING)
+      .setImage(PANEL_BANNER_URL || null)
+      .setFooter({ text: `Commande: ${orderId} • DreamShop Verification` })
+      .setTimestamp();
+
+    const staffButtons = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`shop_approve_${orderId}`)
+        .setLabel('✅ Valider la Commande')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`shop_reject_${orderId}`)
+        .setLabel('❌ Rejeter')
+        .setStyle(ButtonStyle.Danger)
+    );
+
+    // Send staff alert into ticket channel
+    await interaction.channel.send({
+      content: `🔔 <@&1532347198975639582> <@&1532347155254087720> | Nouveau paiement PayPal à vérifier pour **${orderId}** !`,
+      embeds: [staffEmbed],
+      components: [staffButtons]
+    });
+
+    await interaction.editReply({
+      content: `✅ **Paiement PayPal signalé avec succès !**\n\nLe staff a été notifié pour vérifier la réception des **${order.price}€** avec la note \`${orderId}\`. Votre commande sera validée dès confirmation.`
+    });
+
+    if (interaction.guild) {
+      const { sendDiscordLog } = require('../../utils/discordLogger');
+      await sendDiscordLog(
+        interaction.guild,
+        'Paiement PayPal Signalé',
+        `Client: <@${interaction.user.id}> (${interaction.user.tag})\nCommande: \`${orderId}\`\nArticle: \`${order.product}\`\nPrix: \`${order.price}€\`\nNote: \`${orderId}\``,
+        COLORS.WARNING
+      );
+    }
+  } catch (error) {
+    logger.error('Shop', 'PayPal paid error', { error: error.message });
+    await interaction.editReply({ content: `❌ Erreur: ${error.message}` });
+  }
+}
+
+async function handleShopLtcCheck(interaction) {
+  const orderId = interaction.customId.replace('shop_ltc_check_', '');
+  await interaction.deferReply({ flags: 64 });
+
+  try {
+    const { query } = require('../../database/hybridPool');
+    const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+    const { COLORS, PANEL_BANNER_URL } = require('../../config/constants');
+    const { checkLtcPayment, LTC_ADDRESS } = require('../../services/cryptoService');
+
+    const orderDb = await query('SELECT * FROM orders WHERE paypal_order_id = $1', [orderId]);
+    const order = orderDb.rows[0];
+
+    if (!order) {
+      return interaction.editReply({ content: '❌ Commande introuvable.' });
+    }
+
+    const expectedLtc = parseFloat(order.payment_proof) || (parseFloat(order.price) / 85.0);
+    const orderTime = new Date(order.created_at).getTime();
+
+    const result = await checkLtcPayment(expectedLtc, orderTime);
+
+    if (result.found) {
+      await query('UPDATE orders SET status = $1, payment_method = $2, updated_at = CURRENT_TIMESTAMP WHERE paypal_order_id = $3', ['PENDING_VERIFICATION', 'LTC', orderId]);
+
+      const cryptoEmbed = new EmbedBuilder()
+        .setTitle('💎 TRANSACTION LITECOIN DÉTECTÉE SUR LA BLOCKCHAIN !')
+        .setDescription(
+          `Une transaction correspondante a été trouvée sur le réseau Litecoin !\n\n` +
+          `> 👤 **Client :** <@${interaction.user.id}> (\`${interaction.user.tag}\`)\n` +
+          `> 📦 **Article :** \`${order.product}\`\n` +
+          `> 💎 **Montant Reçu :** \`${result.amountLtc} LTC\`\n` +
+          `> 📍 **Adresse :** \`${LTC_ADDRESS}\`\n` +
+          `> 🔗 **Transaction (TXID) :** [Voir sur l'explorateur Blockchain](${result.explorerUrl})\n` +
+          `> ⏳ **Statut Réseau :** ${result.confirmed ? '✅ **Confirmée** (Bloc: ' + result.blockHeight + ')' : '🔄 **Détectée dans le Mempool** (En attente de confirmation)'}\n\n` +
+          `Le staff peut valider la commande immédiatement ci-dessous :`
+        )
+        .setColor(COLORS.SUCCESS)
+        .setImage(PANEL_BANNER_URL || null)
+        .setFooter({ text: `TXID: ${result.txid.substring(0, 16)}... • Litecoin Blockchain Verification` })
+        .setTimestamp();
+
+      const staffButtons = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`shop_approve_${orderId}`)
+          .setLabel('✅ Valider la Commande')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId(`shop_reject_${orderId}`)
+          .setLabel('❌ Rejeter')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await interaction.channel.send({
+        content: `🔔 <@&1532347198975639582> <@&1532347155254087720> | Paiement Crypto LTC vérifié sur la Blockchain pour **${orderId}** !`,
+        embeds: [cryptoEmbed],
+        components: [staffButtons]
+      });
+
+      await interaction.editReply({
+        content: `✅ **Transaction Litecoin confirmée sur la Blockchain !**\nTXID: \`${result.txid}\`\nLe staff a été notifié pour procéder à la livraison de votre commande.`
+      });
+
+      if (interaction.guild) {
+        const { sendDiscordLog } = require('../../utils/discordLogger');
+        await sendDiscordLog(
+          interaction.guild,
+          'Paiement LTC Détecté',
+          `Client: <@${interaction.user.id}>\nCommande: \`${orderId}\`\nMontant: \`${result.amountLtc} LTC\`\nTXID: [${result.txid}](${result.explorerUrl})`,
+          COLORS.SUCCESS
+        );
+      }
+    } else {
+      await interaction.editReply({
+        content: `⏳ **Aucune transaction correspondante détectée sur l'adresse pour le moment.**\n\n` +
+          `> 📍 Adresse attendue : \`${LTC_ADDRESS}\`\n` +
+          `> 💎 Montant attendu : \`${expectedLtc.toFixed(6)} LTC\` (~${order.price}€)\n\n` +
+          `💡 *Si vous venez d'effectuer le transfert depuis votre wallet ou exchange (Binance, Kraken, etc.), veuillez patienter 1 à 2 minutes que le réseau diffuse la transaction, puis recliquez sur "Vérifier le paiement LTC".*`
+      });
+    }
+  } catch (error) {
+    logger.error('Shop', 'LTC check error', { error: error.message });
+    await interaction.editReply({ content: `❌ Erreur lors de la vérification LTC: ${error.message}` });
+  }
+}
+
 async function handleShopApprove(interaction) {
   const dbId = interaction.customId.replace('shop_approve_', '');
   await interaction.deferReply({ flags: 64 });
   
   try {
-    const { query } = require('../database/hybridPool');
+    const { query } = require('../../database/hybridPool');
     const { EmbedBuilder } = require('discord.js');
-    const { COLORS } = require('../config/constants');
+    const { COLORS } = require('../../config/constants');
     
     const orderDb = await query('SELECT * FROM orders WHERE paypal_order_id = $1', [dbId]);
     const order = orderDb.rows[0];
     
-    if (!order || order.status !== 'PENDING_VERIFICATION') {
-      return interaction.editReply({ content: '❌ Order not found or already processed.' });
+    if (!order || order.status === 'COMPLETED') {
+      return interaction.editReply({ content: '❌ Commande introuvable ou déjà validée.' });
     }
     
     await query('UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE paypal_order_id = $2', ['COMPLETED', dbId]);
     
-    // Disable buttons on the original message and update staff embed
+    // Update staff embed in channel
     const msg = interaction.message;
     const staffEmbed = new EmbedBuilder()
-      .setTitle('✅ VERIFIED BY STAFF')
-      .setDescription(`This payment was successfully verified by <@${interaction.user.id}>.\nOrder ID: \`${dbId}\``)
+      .setTitle('✅ COMMANDE VALIDÉE PAR LE STAFF')
+      .setDescription(`Ce paiement a été vérifié et approuvé par <@${interaction.user.id}>.\nCommande ID: \`${dbId}\`\nProduit: **${order.product}**\nPrix: **${order.price}€**`)
       .setColor(COLORS.SUCCESS)
       .setTimestamp();
     await msg.edit({ embeds: [staffEmbed], components: [] });
     
-    // DM the user
+    // DM the buyer
     try {
       const user = await interaction.client.users.fetch(order.user_id);
       const embed = new EmbedBuilder()
-        .setTitle('✅ PAYMENT APPROVED')
-        .setDescription(`Congratulations <@${order.user_id}>! 🎉\n\nYour payment for **${order.product}** has been successfully verified.\nYour order will now be processed by our automated system!`)
+        .setTitle('✅ PAIEMENT APPROUVÉ • DREAMSHOP')
+        .setDescription(`Félicitations <@${order.user_id}> ! 🎉\n\nVotre paiement pour **${order.product}** a été vérifié avec succès.\nUn membre de l'équipe va vous livrer vos accès et produits immédiatement !`)
         .setColor(COLORS.SUCCESS)
-        .setImage(require('../config/constants').PANEL_BANNER_URL || null)
-        .setFooter({ text: `Order ID: ${dbId} • PrimeGen` })
+        .setImage(require('../../config/constants').PANEL_BANNER_URL || null)
+        .setFooter({ text: `Commande: ${dbId} • DreamShop` })
         .setTimestamp();
       await user.send({ embeds: [embed] });
     } catch (e) {
-      // Ignore if DMs are closed
+      // Ignore DM errors
     }
     
-    await interaction.editReply({ content: `✅ Order #${order.payment_proof} approved successfully!` });
+    await interaction.editReply({ content: `✅ Commande **${dbId}** approuvée avec succès !` });
+
+    if (interaction.guild) {
+      const { sendDiscordLog } = require('../../utils/discordLogger');
+      await sendDiscordLog(
+        interaction.guild,
+        'Commande Validée',
+        `Staff: <@${interaction.user.id}>\nClient: <@${order.user_id}>\nCommande: \`${dbId}\`\nProduit: \`${order.product}\``,
+        COLORS.SUCCESS
+      );
+    }
   } catch (error) {
-    await interaction.editReply({ content: `❌ Error: ${error.message}` });
+    await interaction.editReply({ content: `❌ Erreur: ${error.message}` });
   }
 }
 
@@ -785,45 +956,45 @@ async function handleShopReject(interaction) {
   await interaction.deferReply({ flags: 64 });
   
   try {
-    const { query } = require('../database/hybridPool');
+    const { query } = require('../../database/hybridPool');
     const { EmbedBuilder } = require('discord.js');
-    const { COLORS } = require('../config/constants');
+    const { COLORS } = require('../../config/constants');
     
     const orderDb = await query('SELECT * FROM orders WHERE paypal_order_id = $1', [dbId]);
     const order = orderDb.rows[0];
     
-    if (!order || order.status !== 'PENDING_VERIFICATION') {
-      return interaction.editReply({ content: '❌ Order not found or already processed.' });
+    if (!order || order.status === 'REJECTED') {
+      return interaction.editReply({ content: '❌ Commande introuvable ou déjà rejetée.' });
     }
     
     await query('UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE paypal_order_id = $2', ['REJECTED', dbId]);
     
-    // Disable buttons on the original message and update staff embed
+    // Update staff embed in channel
     const msg = interaction.message;
     const staffEmbed = new EmbedBuilder()
-      .setTitle('❌ REJECTED BY STAFF')
-      .setDescription(`This payment was rejected by <@${interaction.user.id}>.\nOrder ID: \`${dbId}\``)
+      .setTitle('❌ COMMANDE REJETÉE PAR LE STAFF')
+      .setDescription(`Ce paiement a été rejeté par <@${interaction.user.id}>.\nCommande ID: \`${dbId}\``)
       .setColor(COLORS.ERROR)
       .setTimestamp();
     await msg.edit({ embeds: [staffEmbed], components: [] });
     
-    // DM the user
+    // DM the buyer
     try {
       const user = await interaction.client.users.fetch(order.user_id);
       const embed = new EmbedBuilder()
-        .setTitle('❌ PAYMENT REJECTED')
-        .setDescription(`Hello <@${order.user_id}>,\n\nUnfortunately, your payment for **${order.product}** could not be verified or was invalid.\nIf you believe this is an error, please open a regular support ticket.`)
+        .setTitle('❌ PAIEMENT NON VALIDÉ • DREAMSHOP')
+        .setDescription(`Bonjour <@${order.user_id}>,\n\nVotre paiement pour **${order.product}** n'a pas pu être validé.\nSi vous pensez qu'il s'agit d'une erreur, veuillez contacter le staff dans votre salon de commande.`)
         .setColor(COLORS.ERROR)
-        .setFooter({ text: `Order ID: ${dbId} • PrimeGen` })
+        .setFooter({ text: `Commande: ${dbId} • DreamShop` })
         .setTimestamp();
       await user.send({ embeds: [embed] });
     } catch (e) {
-      // Ignore if DMs are closed
+      // Ignore DM errors
     }
     
-    await interaction.editReply({ content: `❌ Order #${order.payment_proof} rejected successfully!` });
+    await interaction.editReply({ content: `❌ Commande **${dbId}** rejetée avec succès.` });
   } catch (error) {
-    await interaction.editReply({ content: `❌ Error: ${error.message}` });
+    await interaction.editReply({ content: `❌ Erreur: ${error.message}` });
   }
 }
 
@@ -876,7 +1047,7 @@ async function handlePrimeStockRefresh(interaction) {
   await interaction.deferUpdate();
   
   try {
-    const { buildPrimeStockPanel } = require('../commands/deploy');
+    const { buildPrimeStockPanel } = require('../../commands/deploy');
     const panel = await buildPrimeStockPanel(interaction.guild);
     
     await interaction.editReply({ embeds: [panel.embed], components: panel.components });
@@ -887,6 +1058,94 @@ async function handlePrimeStockRefresh(interaction) {
 }
 
 
+
+async function handleFreegenButton(interaction) {
+  await interaction.deferUpdate();
+
+  const serviceId = interaction.customId.replace('freegen_', '');
+  const { getServiceById } = require('../../config/services');
+  const service = getServiceById(serviceId);
+  if (!service) {
+    return interaction.followUp({ content: '❌ Service not found.', flags: 64 });
+  }
+
+  // Remove components from the original ephemeral message
+  await interaction.editReply({ components: [] }).catch(() => {});
+
+  // Prepare DM embed with placeholder account info
+  const { EmbedBuilder } = require('discord.js');
+  const dmEmbed = new EmbedBuilder()
+    .setColor(0x2F3136)
+    .setTitle(`🎁 DreamShop • ${service.label} (Generated)`)
+    .setDescription('Here is your generated account (placeholder).')
+    .addFields({ name: 'Service', value: service.label, inline: true })
+    .setFooter({ text: 'DreamShop Generator', iconURL: interaction.client.user.displayAvatarURL() })
+    .setTimestamp();
+
+  try {
+    await interaction.user.send({ embeds: [dmEmbed] });
+    await interaction.followUp({ content: '✅ Account sent to your DMs!', flags: 64 });
+  } catch (err) {
+    logger.error('Freegen', 'Failed to DM user', { error: err.message });
+    await interaction.followUp({ content: '❌ Could not send DM. Please enable DMs from server members.', flags: 64 });
+  }
+}
+
+async function handleFreegenNav(interaction) {
+  await interaction.deferUpdate();
+  const direction = interaction.customId === 'freegen_next' ? 1 : -1;
+
+  // Retrieve current page from message embed footer
+  const footerText = interaction.message.embeds[0]?.footer?.text || '';
+  const match = footerText.match(/Page (\d+)\/(\d+)/);
+  if (!match) return;
+  let page = parseInt(match[1]) - 1;
+  const totalPages = parseInt(match[2]);
+  page += direction;
+  if (page < 0) page = 0;
+  if (page >= totalPages) page = totalPages - 1;
+
+  const { getAllServices } = require('../../config/services');
+  const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+
+  const services = getAllServices();
+  const pageSize = 20;
+  const pages = [];
+  for (let i = 0; i < services.length; i += pageSize) {
+    pages.push(services.slice(i, i + pageSize));
+  }
+
+  const pageServices = pages[page];
+  const embed = new EmbedBuilder()
+    .setColor(0x2F3136)
+    .setTitle('🎁 DreamShop • Free Generator')
+    .setDescription('Click a button below to generate an account for the selected service.')
+    .setFooter({ text: `Page ${page + 1}/${totalPages} • DreamShop` })
+    .setTimestamp();
+
+  const rows = [];
+  for (let i = 0; i < pageServices.length; i += 5) {
+    const chunk = pageServices.slice(i, i + 5);
+    const row = new ActionRowBuilder();
+    chunk.forEach(svc => {
+      const btn = new ButtonBuilder()
+        .setCustomId(`freegen_${svc.id}`)
+        .setLabel(svc.label)
+        .setStyle(ButtonStyle.Secondary);
+      if (svc.defaultEmoji) btn.setEmoji(svc.defaultEmoji);
+      row.addComponents(btn);
+    });
+    rows.push(row);
+  }
+  const navRow = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder().setCustomId('freegen_prev').setLabel('⬅️ Prev').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('freegen_next').setLabel('Next ➡️').setStyle(ButtonStyle.Primary)
+    );
+  rows.push(navRow);
+
+  await interaction.editReply({ embeds: [embed], components: rows });
+}
 
 module.exports = {
   registerButtonHandlers,
@@ -904,14 +1163,14 @@ async function sendWelcomeMessage(guild, member) {
     const embedFr = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle(`🇫🇷 Bienvenue ${member.user.username} !`)
-      .setDescription(`Hey ${member}, bienvenue sur **PrimeGen** !\n\nN'hésite pas à visiter notre **Shop** pour découvrir nos offres exclusives, et jette un œil aux **générateurs** pour obtenir tes comptes !\n\n*Si tu as une question, n'hésite pas à me mentionner ici pour parler avec l'IA !*`)
+      .setDescription(`Hey ${member}, bienvenue sur **DreamShop** !\n\nN'hésite pas à visiter notre **Shop** pour découvrir nos offres exclusives, et jette un œil aux **générateurs** pour obtenir tes comptes !\n\n*Si tu as une question, n'hésite pas à me mentionner ici pour parler avec l'IA !*`)
       .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
       .setTimestamp();
       
     const embedEn = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle(`🇬🇧 Welcome ${member.user.username}!`)
-      .setDescription(`Hey ${member}, welcome to **PrimeGen**!\n\nDon't hesitate to check out our **Shop** for exclusive offers, and take a look at the **generators** to get your accounts!\n\n*If you have a question, feel free to mention me here to chat with the AI!*`)
+      .setDescription(`Hey ${member}, welcome to **DreamShop**!\n\nDon't hesitate to check out our **Shop** for exclusive offers, and take a look at the **generators** to get your accounts!\n\n*If you have a question, feel free to mention me here to chat with the AI!*`)
       .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
       .setTimestamp();
       
@@ -923,7 +1182,7 @@ async function sendWelcomeMessage(guild, member) {
 
 
 async function handleServerLeave(interaction) {
-  await interaction.deferReply({ flags: 64 });
+  await interaction.deferReply({ ephemeral: true });
   const guildId = interaction.customId.replace('server_leave_', '');
   const guildToLeave = interaction.client.guilds.cache.get(guildId);
   
@@ -933,15 +1192,11 @@ async function handleServerLeave(interaction) {
 
   try {
     const name = guildToLeave.name;
-    
-    // Protection for Main Servers
-    if (guildId === '1532343959722917979' || guildId === '1178305844698435625') {
-      return interaction.editReply({ content: `❌ **Interdit!** Tu ne peux pas forcer le bot à quitter son serveur principal.` });
-    }
-
     await guildToLeave.leave();
     await interaction.editReply({ content: `✅ Le bot a quitté le serveur **${name}** avec succès !` });
   } catch (err) {
     await interaction.editReply({ content: `❌ Erreur lors de la tentative de quitter le serveur : ${err.message}` });
   }
 }
+
+

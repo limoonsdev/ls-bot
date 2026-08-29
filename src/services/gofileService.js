@@ -9,7 +9,7 @@ const { createWriteStream } = require('fs');
 const { finished } = require('stream/promises');
 const { pathToFileURL } = require('url');
 const { path7za } = require('7zip-bin');
-const { parseUlpFile } = require('./ulp_parser');
+const { parseUlpFile } = require('../parsers/ulpParser');
 
 const MAX_REDIRECTS = 10;
 const DOWNLOAD_PROGRESS_INTERVAL_MS = 1500;
@@ -507,3 +507,5 @@ async function processGofileUlp({ gofileUrl, services, addCombosFn, onEvent }) {
 module.exports = {
   processGofileUlp
 };
+
+

@@ -6,7 +6,22 @@
  * provides configuration object for entire application.
  */
 
-require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Load .env from multiple possible locations
+const envPaths = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(__dirname, '../../.env'),
+  path.resolve(__dirname, '../../../.env')
+];
+
+for (const envPath of envPaths) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+  }
+}
 
 const CONSTANTS = require('./constants');
 
@@ -29,7 +44,7 @@ function validateEnvironment() {
   if (missing.length > 0) {
     console.error('❌ Missing required environment variables:');
     missing.forEach(key => console.error(`   - ${key}`));
-    console.error('\n📋 Please copy .env.example to .env and fill in the required values.');
+    console.error('\n📋 Please fill in the required values in .env file.');
     process.exit(1);
   }
   
@@ -41,51 +56,67 @@ function validateEnvironment() {
  */
 const CONFIG = {
   // Bot Configuration
-  bot: {
-    token: process.env.DISCORD_TOKEN,
-    clientId: process.env.CLIENT_ID,
-    clientSecret: process.env.CLIENT_SECRET,
-    prefix: process.env.PREFIX || '!'
+  get bot() {
+    return {
+      token: process.env.DISCORD_TOKEN,
+      clientId: process.env.CLIENT_ID || process.env.DISCORD_CLIENT_ID,
+      clientSecret: process.env.CLIENT_SECRET || process.env.DISCORD_CLIENT_SECRET,
+      prefix: process.env.PREFIX || '!'
+    };
   },
 
   // Server Configuration
-  server: {
-    port: parseInt(process.env.PORT || '3000'),
-    nodeEnv: process.env.NODE_ENV || 'development',
-    externalUrl: process.env.EXTERNAL_URL || `http://localhost:${process.env.PORT || 3000}`,
-    isDevelopment: (process.env.NODE_ENV || 'development') === 'development',
-    isProduction: (process.env.NODE_ENV || 'development') === 'production'
+  get server() {
+    const port = parseInt(process.env.PORT || process.env.WEB_PORT || '3000');
+    const nodeEnv = process.env.NODE_ENV || 'development';
+    return {
+      port,
+      nodeEnv,
+      externalUrl: process.env.EXTERNAL_URL || `http://localhost:${port}`,
+      isDevelopment: nodeEnv === 'development',
+      isProduction: nodeEnv === 'production'
+    };
   },
 
   // Database Configuration
-  database: {
-    url: process.env.DATABASE_URL,
-    pool: {
-      min: CONSTANTS.DATABASE.POOL_MIN,
-      max: CONSTANTS.DATABASE.POOL_MAX,
-      idleTimeoutMillis: CONSTANTS.DATABASE.IDLE_TIMEOUT_MS,
-      connectionTimeoutMillis: CONSTANTS.DATABASE.STATEMENT_TIMEOUT_MS
-    }
+  get database() {
+    return {
+      url: process.env.DATABASE_URL,
+      pool: {
+        max: parseInt(process.env.DB_POOL_MAX || '20'),
+        idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000'),
+        connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '5000')
+      }
+    };
   },
 
   // Logging Configuration
-  logging: {
-    level: process.env.LOG_LEVEL || CONSTANTS.LOGGING.DEFAULT_LEVEL,
-    isDev: (process.env.NODE_ENV || 'development') === 'development'
+  get logging() {
+    return {
+      level: process.env.LOG_LEVEL || 'info',
+      filePath: process.env.LOG_FILE_PATH || './logs/app.log',
+      maxSize: process.env.LOG_MAX_SIZE || '10m',
+      maxFiles: process.env.LOG_MAX_FILES || '7d'
+    };
   },
 
-  // Optional API Keys (with fallback values)
-  api: {
-    groqApiKey: process.env.GROQ_API_KEY || null,
-    cerebrasApiKey: process.env.CEREBRAS_API_KEY || null
+  // AI & External Services
+  get ai() {
+    return {
+      groqApiKey: process.env.GROQ_API_KEY || null,
+      geminiApiKey: process.env.GEMINI_API_KEY || null,
+      cerebrasApiKey: process.env.CEREBRAS_API_KEY || null
+    };
   },
 
   // Feature Flags
-  features: {
-    enableProxyRotation: process.env.ENABLE_PROXY_ROTATION !== 'false',
-    enableTranslations: process.env.ENABLE_TRANSLATIONS !== 'false',
-    enableChecking: process.env.ENABLE_CHECKING !== 'false',
-    enableLogging: process.env.ENABLE_LOGGING !== 'false'
+  get features() {
+    return {
+      enableProxyRotation: process.env.ENABLE_PROXY_ROTATION !== 'false',
+      enableTranslations: process.env.ENABLE_TRANSLATIONS !== 'false',
+      enableChecking: process.env.ENABLE_CHECKING !== 'false',
+      enableLogging: process.env.ENABLE_LOGGING !== 'false'
+    };
   },
 
   // Constants reference

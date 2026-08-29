@@ -73,7 +73,7 @@ async function createOrder(amount, currency = 'EUR', description = 'Discord Boos
           }
         ],
         application_context: {
-          brand_name: 'PrimeGen',
+          brand_name: 'DreamShop',
           landing_page: 'NO_PREFERENCE',
           user_action: 'PAY_NOW',
           return_url: 'https://discord.com',
@@ -140,3 +140,5 @@ module.exports = {
   createOrder,
   capturePayment
 };
+
+

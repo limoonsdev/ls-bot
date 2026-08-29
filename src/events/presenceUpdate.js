@@ -1,7 +1,7 @@
 const { getLogger } = require('../utils/logger');
 const logger = getLogger();
 
-const REQUIRED_TAG = '.gg/primegen';
+const REQUIRED_TAG = '.gg/dreamshop';
 const ROLE_ID = '1532347064623698010';
 
 async function handlePresenceUpdate(oldPresence, newPresence) {
@@ -27,10 +27,10 @@ async function handlePresenceUpdate(oldPresence, newPresence) {
   try {
     if (hasTag && !hasRole) {
       await member.roles.add(ROLE_ID);
-      logger.info('Presence', `Added status role to ${member.user.tag}`);
+      logger.info('Presence', `Added Free role to ${member.user.tag} (has .gg/dreamshop)`);
     } else if (!hasTag && hasRole) {
       await member.roles.remove(ROLE_ID);
-      logger.info('Presence', `Removed status role from ${member.user.tag}`);
+      logger.info('Presence', `Removed Free role from ${member.user.tag} (missing .gg/dreamshop)`);
     }
   } catch (error) {
     logger.error('Presence', `Failed to update status role for ${member.user.tag}`, { error: error.message });

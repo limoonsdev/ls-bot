@@ -34,3 +34,5 @@ async function checkAccount(serviceId, email, password, proxy = null) {
 module.exports = {
   checkAccount
 };
+
+
