@@ -23,15 +23,15 @@ const command = new SlashCommandBuilder()
   .setName('prime-restock')
   .setDescription('💎 Restocker les services Prime HQ (Fichier TXT/ULP ou Texte)')
   .setDefaultMemberPermissions('8') // Administrator
-  .addAttachmentOption(option =>
-    option.setName('fichier')
-      .setDescription('Fichier TXT ou ULP avec les combos')
-      .setRequired(false))
   .addStringOption(option =>
     option.setName('service')
       .setDescription('Service Prime à restocker')
       .setRequired(true)
       .setAutocomplete(true))
+  .addAttachmentOption(option =>
+    option.setName('fichier')
+      .setDescription('Fichier TXT ou ULP avec les combos')
+      .setRequired(false))
   .addStringOption(option =>
     option.setName('comptes')
       .setDescription('Ou collez directement les comptes (séparés par virgule ou espace)')
