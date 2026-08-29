@@ -40,11 +40,13 @@ async function loadServiceEmojis(guild) {
 
   for (const file of files) {
     try {
-      const serviceName = path.basename(file, '.png');
+      const serviceName = path.basename(file, '.png').toLowerCase();
       const emojiName = `service_${serviceName}`;
 
       const existingEmoji = existingEmojis.find(e => 
-        e.name === emojiName || e.name === `ng_${serviceName}` || e.name === serviceName
+        e.name.toLowerCase() === emojiName || 
+        e.name.toLowerCase() === `ng_${serviceName}` || 
+        e.name.toLowerCase() === serviceName
       );
       
       if (existingEmoji) {

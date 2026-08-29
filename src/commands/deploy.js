@@ -151,10 +151,10 @@ async function execute(interaction) {
 }
 
 /**
- * Build ultra-styled basic generation panel with custom emojis
+ * Build ultra-styled basic generation panel with custom emojis (1 single unified message)
  */
 async function buildBasicPanels(guild) {
-  const services = [...getServicesByTier('free'), ...getServicesByTier('premium')];
+  const services = [...getServicesByTier('free'), ...getServicesByTier('premium')].slice(0, 25);
   
   const { query } = require('../database/hybridPool');
   const stockData = {};
@@ -167,86 +167,58 @@ async function buildBasicPanels(guild) {
     // Silently continue
   }
 
-  const panels = [];
-  
-  // Split services into chunks of 25 (Discord max components per message)
-  for (let i = 0; i < services.length; i += 25) {
-    const chunk = services.slice(i, i + 25);
-    
-    let serviceList = '> ';
-    let count = 0;
-    for (const service of chunk.slice(0, 12)) {
-      const emoji = await getOrFetchEmoji(guild, service);
-      const emojiStr = typeof emoji === 'string' ? emoji : (emoji?.toString() || service.defaultEmoji);
-      serviceList += `${emojiStr} **${service.label}**  `;
-      count++;
-      if (count % 3 === 0 && count < 12) serviceList += '\n> ';
-    }
-    if (chunk.length > 12) serviceList += `\n> *... et ${chunk.length - 12} autres services ci-dessous*`;
-    
-    const titleSuffix = i > 0 ? ` (Partie ${Math.floor(i/25) + 1})` : '';
+  const embed = new EmbedBuilder()
+    .setTitle('✨ DreamShop • Générateur Principal')
+    .setDescription(
+      '### 🎁 Accès Free & Premium Immédiat\n\n' +
+      '> 💎 **Statut Requis :** Mettez `.gg/shop2rv` dans votre profil Discord !\n' +
+      '> 🔄 **Mise à jour :** Stock synchronisé en direct toutes les 5 secondes\n' +
+      '> 📝 **Règle :** Avis obligatoire dans <#1532367074125545673> sous 24h\n\n' +
+      `### 📦 Services Disponibles (${services.length})\n` +
+      '🍿 **Streaming :** Netflix • Disney+ • Paramount+ • Prime Video • HBO Max • Crunchyroll\n' +
+      '🎮 **Gaming :** Fortnite • Valorant • Minecraft • Rockstar • Steam • Roblox • Epic • Battle.net • PSN\n' +
+      '🛡️ **VPN & Sécurité :** NordVPN • ExpressVPN • Mullvad VPN\n' +
+      '🎵 **Musique :** Spotify • Deezer\n' +
+      '🤖 **Réseaux & IA :** Discord • TikTok • ElevenLabs • Duolingo\n\n' +
+      '**👇 Cliquez sur le bouton de votre choix pour recevoir vos identifiants :**'
+    )
+    .setColor(COLORS.FREE)
+    .setImage(PANEL_BANNER_URL)
+    .setFooter({ 
+      text: '✨ DreamShop • Accès Instantané • .gg/shop2rv',
+      iconURL: PANEL_BANNER_URL
+    })
+    .setTimestamp();
 
-    const embed = new EmbedBuilder()
-      .setTitle(`✨ DreamShop • Générateur Principal${titleSuffix}`)
-      .setDescription(
-        i === 0 ? (
-          '### 🎁 Accès Free & Premium\n\n' +
-          '> 🔄 **Stock en direct :** Mis à jour automatiquement\n' +
-          '> 🌍 **Catalogue étendu :** Streaming, Gaming, VPN, Utilitaires\n' +
-          '> 💬 **Règle :** N\'oubliez pas de laisser un **#proof** sous 24h\n' +
-          '> 💎 **Statut Requis :** Mettez `.gg/shop2rv` dans votre profil Discord !\n\n' +
-          '### 📦 Services Disponibles\n' +
-          `${serviceList}\n\n` +
-          '**👇 Cliquez sur le bouton de votre choix pour générer :**'
-        ) : (
-          '### 📦 Plus de services disponibles\n\n' +
-          `${serviceList}\n\n` +
-          '**👇 Cliquez sur le bouton de votre choix pour générer :**'
-        )
-      )
-      .setColor(COLORS.FREE)
-      .setFooter({ 
-        text: '✨ DreamShop • Accès Instantané' + titleSuffix,
-        iconURL: PANEL_BANNER_URL
-      })
-      .setTimestamp();
-      
-    if (i === 0) {
-      embed.setImage(PANEL_BANNER_URL);
+  const components = [];
+  let currentRow = new ActionRowBuilder();
+  let buttonCount = 0;
+
+  for (const service of services) {
+    const emoji = await getOrFetchEmoji(guild, service);
+    const stockCount = stockData[service.id] || 0;
+    
+    const button = new ButtonBuilder()
+      .setCustomId(`gen_${service.tier}_${service.id}`)
+      .setLabel(`${service.label.substring(0, 50)} [${stockCount}]`)
+      .setStyle(service.tier === 'premium' ? ButtonStyle.Primary : ButtonStyle.Secondary);
+
+    if (typeof emoji === 'string') {
+      button.setEmoji(emoji);
+    } else if (emoji && emoji.id) {
+      button.setEmoji(emoji.id);
     }
 
-    const components = [];
-    let currentRow = new ActionRowBuilder();
-    let buttonCount = 0;
+    currentRow.addComponents(button);
+    buttonCount++;
 
-    for (const service of chunk) {
-      const emoji = await getOrFetchEmoji(guild, service);
-      const stockCount = stockData[service.id] || 0;
-      
-      const button = new ButtonBuilder()
-        .setCustomId(`gen_${service.tier}_${service.id}`)
-        .setLabel(`${service.label.substring(0, 50)} [${stockCount}]`)
-        .setStyle(service.tier === 'premium' ? ButtonStyle.Primary : ButtonStyle.Secondary);
-
-      if (typeof emoji === 'string') {
-        button.setEmoji(emoji);
-      } else if (emoji && emoji.id) {
-        button.setEmoji(emoji.id);
-      }
-
-      currentRow.addComponents(button);
-      buttonCount++;
-
-      if (buttonCount % 5 === 0 || buttonCount === chunk.length) {
-        components.push(currentRow);
-        currentRow = new ActionRowBuilder();
-      }
+    if (buttonCount % 5 === 0 || buttonCount === services.length) {
+      components.push(currentRow);
+      currentRow = new ActionRowBuilder();
     }
-    
-    panels.push({ embed, components });
   }
 
-  return panels;
+  return [{ embed, components }];
 }
 
 /**
@@ -329,11 +301,11 @@ async function buildStockPanel(guild) {
   let totalStock = 0;
   
   const categories = {
-    '🎬 STREAMING': ['netflix', 'disney', 'paramount', 'hbomax', 'primevideo', 'crunchyroll', 'adn', 'dazn'],
-    '🎮 GAMING': ['steam', 'epicgames', 'fortnite', 'valorant', 'roblox', 'minecraft', 'xbox', 'psn', 'battlenet'],
-    '🛡️ VPN': ['nordvpn', 'expressvpn', 'mullvadvpn', 'protonvpn'],
-    '🎵 MUSIC': ['spotify', 'deezer'],
-    '📧 OTHERS': ['gmail', 'hotmail', 'paypal', 'ebay', 'duolingo', 'mega']
+    '🎬 STREAMING': ['netflix', 'disney', 'paramount', 'primevideo', 'hbomax', 'crunchyroll'],
+    '🎮 GAMING': ['fortnite', 'valorant', 'minecraft', 'rockstar', 'steam', 'roblox', 'epicgames', 'battlenet', 'psn'],
+    '🛡️ VPN & SÉCURITÉ': ['nordvpn', 'expressvpn', 'mullvadvpn'],
+    '🎵 MUSIQUE': ['spotify', 'deezer'],
+    '🤖 DISCORD, IA & SOCIAL': ['discord', 'tiktok', 'elevenlabs', 'duolingo']
   };
 
   const allServices = getAllServices();
