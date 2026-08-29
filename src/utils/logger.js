@@ -1,9 +1,9 @@
 /**
  * =====================================================
- * STRUCTURED LOGGING SERVICE
+ * STRUCTURED LOGGING SERVICE - DREAMSHOP
  * =====================================================
- * Provides centralized logging with multiple transports
- * and different log levels for debugging & monitoring.
+ * Provides centralized logging with console output (stdout/stderr)
+ * and file transports for Docker, Coolify, and local development.
  */
 
 const fs = require('fs');
@@ -36,14 +36,18 @@ const COLORS = {
  */
 class Logger {
   constructor(options = {}) {
-    this.logLevel = LOG_LEVELS[options.level?.toUpperCase() || 'INFO'];
+    this.logLevel = LOG_LEVELS[options.level?.toUpperCase() || 'INFO'] ?? LOG_LEVELS.INFO;
     this.isDev = options.isDev !== false;
     this.logsDir = options.logsDir || path.join(process.cwd(), 'logs');
     this.maxFileSize = options.maxFileSize || 10485760; // 10MB
     
     // Create logs directory if it doesn't exist
-    if (!fs.existsSync(this.logsDir)) {
-      fs.mkdirSync(this.logsDir, { recursive: true });
+    try {
+      if (!fs.existsSync(this.logsDir)) {
+        fs.mkdirSync(this.logsDir, { recursive: true });
+      }
+    } catch (e) {
+      // Silently continue if read-only filesystem
     }
   }
 
@@ -78,26 +82,31 @@ class Logger {
   }
 
   /**
-   * Write to console
+   * Write to console (Always active for Docker/Coolify stdout)
    */
   writeConsole(level, module, message, data) {
-    if (!this.isDev) return;
-
     const color = this.getColorForLevel(level);
     const formatted = this.formatMessage(level, module, message, data);
-    console.log(`${color}${formatted}${COLORS.RESET}`);
+    
+    if (level === 'ERROR') {
+      console.error(`${color}${formatted}${COLORS.RESET}`);
+    } else if (level === 'WARN') {
+      console.warn(`${color}${formatted}${COLORS.RESET}`);
+    } else {
+      console.log(`${color}${formatted}${COLORS.RESET}`);
+    }
   }
 
   /**
    * Write to file
    */
   writeFile(level, module, message, data) {
-    const timestamp = this.formatTimestamp();
-    const filename = `${timestamp.split('T')[0]}.log`;
-    const filepath = path.join(this.logsDir, filename);
-    const formatted = this.formatMessage(level, module, message, data);
-
     try {
+      const timestamp = this.formatTimestamp();
+      const filename = `${timestamp.split('T')[0]}.log`;
+      const filepath = path.join(this.logsDir, filename);
+      const formatted = this.formatMessage(level, module, message, data);
+
       fs.appendFileSync(filepath, formatted + '\n');
 
       // Check file size and rotate if needed
@@ -107,7 +116,7 @@ class Logger {
         fs.renameSync(filepath, backup);
       }
     } catch (error) {
-      console.error('Failed to write to log file:', error);
+      // Ignore file write errors in containers
     }
   }
 
@@ -143,10 +152,10 @@ class Logger {
   }
 
   /**
-   * Log debug (only in dev)
+   * Log debug
    */
   debug(module, message, data = null) {
-    if (!this.isDev) return;
+    if (!this.isDev && this.logLevel < LOG_LEVELS.DEBUG) return;
     this.log('DEBUG', module, message, data);
   }
 }
@@ -178,5 +187,3 @@ module.exports = {
   getLogger,
   LOG_LEVELS
 };
-
-

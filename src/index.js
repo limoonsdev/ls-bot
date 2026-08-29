@@ -248,15 +248,23 @@ class DreamShopBot {
     }
 
     try {
-      logger.info('Bot', 'Connecting to Discord...');
+      logger.info('Bot', 'Connecting to Discord Gateway...');
       await this.client.login(token);
       global.discordClient = this.client;
       logger.info('Bot', '✅ DreamShop Bot connected successfully');
     } catch (error) {
-      logger.error('Bot', `Failed to connect to Discord: ${error.message}`);
-      if (error.message.includes('401') || error.message.includes('An invalid token')) {
-        logger.error('Bot', '👉 Le DISCORD_TOKEN a expiré ou été réinitialisé. Rendez-vous sur le Discord Developer Portal (https://discord.com/developers/applications) > Bot > Reset Token pour en générer un nouveau.');
+      console.error('\n======================================================================');
+      console.error('❌ ERREUR DE CONNEXION AU BOT DISCORD');
+      console.error(`Message: ${error.message}`);
+      if (error.message.includes('401') || error.message.includes('An invalid token') || error.message.includes('disallowed intents')) {
+        console.error('👉 Le DISCORD_TOKEN est invalide ou a été réinitialisé par Discord.');
+        console.error('👉 Rendez-vous sur le Discord Developer Portal : https://discord.com/developers/applications');
+        console.error('   1. Sélectionnez votre Bot');
+        console.error('   2. Allez dans l\'onglet "Bot" > Cliquez sur "Reset Token"');
+        console.error('   3. Vérifiez que les 3 "Privileged Gateway Intents" (Presence, Server Members, Message Content) sont TOUS COCHÉS');
+        console.error('   4. Copiez le nouveau token et mettez à jour la variable DISCORD_TOKEN dans Coolify');
       }
+      console.error('======================================================================\n');
       throw error;
     }
   }
@@ -277,10 +285,12 @@ class DreamShopBot {
       await closeHybridDB();
 
       // Destroy Discord client
-      this.client.destroy();
+      if (this.client) {
+        this.client.destroy();
+      }
 
       logger.info('Bot', '✅ Shutdown complete');
-      process.exit(0);
+      process.exit(1);
     } catch (error) {
       logger.error('Bot', 'Error during shutdown', { error: error.message });
       process.exit(1);
@@ -310,7 +320,9 @@ class DreamShopBot {
 
       logger.info('Bot', '✅ DreamShop Bot is LIVE and ready!');
     } catch (error) {
-      logger.error('Bot', 'Failed to start bot', { error: error.message });
+      logger.error('Bot', `Failed to start bot: ${error.message}`);
+      // Wait 15 seconds so logs can be viewed and avoid fast crash loops
+      await new Promise(r => setTimeout(r, 15000));
       await this.shutdown();
     }
   }
