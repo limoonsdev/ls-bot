@@ -201,7 +201,7 @@ async function buildBasicPanels(guild) {
     const button = new ButtonBuilder()
       .setCustomId(`gen_${service.tier}_${service.id}`)
       .setLabel(`${service.label.substring(0, 50)} [${stockCount}]`)
-      .setStyle(service.tier === 'premium' ? ButtonStyle.Primary : ButtonStyle.Secondary);
+      .setStyle(ButtonStyle.Secondary);
 
     if (typeof emoji === 'string') {
       button.setEmoji(emoji);
