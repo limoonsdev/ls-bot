@@ -52,6 +52,12 @@ async function execute(interaction) {
       });
     }
 
+    // Ensure all service emojis (rockstar, minecraft, discord, etc.) are loaded and uploaded
+    if (interaction.guild) {
+      const { loadServiceEmojis } = require('../services/emojiManager');
+      await loadServiceEmojis(interaction.guild);
+    }
+
     let panelsToDeploy = [];
 
     switch (type) {
@@ -203,10 +209,17 @@ async function buildBasicPanels(guild) {
       .setLabel(`${service.label.substring(0, 50)} [${stockCount}]`)
       .setStyle(ButtonStyle.Secondary);
 
-    if (typeof emoji === 'string') {
-      button.setEmoji(emoji);
-    } else if (emoji && emoji.id) {
-      button.setEmoji(emoji.id);
+    if (emoji) {
+      if (emoji.id) {
+        button.setEmoji(emoji.id);
+      } else if (typeof emoji === 'string') {
+        const idMatch = emoji.match(/:(\d+)>$/);
+        if (idMatch) {
+          button.setEmoji(idMatch[1]);
+        } else {
+          button.setEmoji(emoji);
+        }
+      }
     }
 
     currentRow.addComponents(button);
@@ -561,10 +574,17 @@ async function buildPrimePanel(guild) {
         .setLabel(`${service.label.substring(0, 50)} [${stockCount}]`)
         .setStyle(ButtonStyle.Success);
 
-      if (typeof emoji === 'string') {
-        button.setEmoji(emoji);
-      } else if (emoji && emoji.id) {
-        button.setEmoji(emoji.id);
+      if (emoji) {
+        if (emoji.id) {
+          button.setEmoji(emoji.id);
+        } else if (typeof emoji === 'string') {
+          const idMatch = emoji.match(/:(\d+)>$/);
+          if (idMatch) {
+            button.setEmoji(idMatch[1]);
+          } else {
+            button.setEmoji(emoji);
+          }
+        }
       }
 
       currentRow.addComponents(button);
