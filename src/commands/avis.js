@@ -20,7 +20,7 @@ async function execute(interaction) {
   const note = interaction.options.getInteger('note');
   const commentaire = interaction.options.getString('commentaire');
   
-  const REVIEW_CHANNEL_ID = '1532367074125545673';
+  const REVIEW_CHANNEL_ID = process.env.REVIEW_CHANNEL_ID || '1537555746122629160';
   let avisChannel = await interaction.guild.channels.fetch(REVIEW_CHANNEL_ID).catch(() => null);
   
   if (!avisChannel) {

@@ -290,50 +290,52 @@ async function handleGenButton(interaction) {
 function buildFrenchGenEmbed(serviceLabel, combo, accountInfo, remainingStock) {
   const { EmbedBuilder } = require('discord.js');
   return new EmbedBuilder()
-    .setTitle(`🎁 DreamShop • Compte ${serviceLabel}`)
+    .setTitle(`💎 DreamShop • Compte ${serviceLabel}`)
     .setDescription(
-      `### ⚡ Félicitations ! Voici vos identifiants :\n\n` +
-      `**🛠️ Service :** \`${serviceLabel}\`\n\n` +
-      `**🔑 Compte (Copier-Coller) :**\n` +
+      `### ⚡ Vos identifiants sont prêts !\n\n` +
+      `╭─ 🛠️ **DÉTAILS DU SERVICE**\n` +
+      `│ 🏷️ **Service :** \`${serviceLabel}\`\n` +
+      `│ 📦 **Stock restant :** \`${remainingStock}\`\n` +
+      (accountInfo ? `│ ℹ️ **Infos :** \`${accountInfo}\`\n` : '') +
+      `╰────────────────────────\n\n` +
+      `🔑 **IDENTIFIANTS (COPIER-COLLER) :**\n` +
       `\`\`\`fix\n${combo}\n\`\`\`\n` +
-      (accountInfo ? `ℹ️ **Informations :** \`${accountInfo}\`\n\n` : '') +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `⚠️ **RAPPEL OBLIGATOIRE (AVIS SOUS 24H) :**\n` +
-      `> 📝 Vous devez poster un avis dans <#1532367074125545673> sous **24 heures** !\n` +
-      `> 🚨 **Attention :** En cas d'absence d'avis sous 24h, vous recevrez un avertissement.\n\n` +
-      `💡 **Conseils de sécurité :**\n` +
-      `• Modifiez le mot de passe et l'adresse email dès que possible.\n` +
-      `• Ne partagez pas ces identifiants.\n\n` +
-      `📦 **Stock restant en direct :** \`${remainingStock}\``
+      `⚠️ **AVIS OBLIGATOIRE SOUS 24H :**\n` +
+      `> 📝 Rendez-vous dans <#1537555746122629160> pour déposer votre avis.\n` +
+      `> 🚨 **Attention :** Tout manquement sous 24h entraîne un avertissement / blacklist.\n\n` +
+      `🛡️ **Conseils & Sécurité :**\n` +
+      `• Modifiez le mot de passe si le service le permet.\n` +
+      `• Ne partagez jamais vos accès générés.`
     )
-    .setColor(0x57F287)
+    .setColor(0x00A8FF)
     .setImage('https://i.ibb.co/FbpXzSZ7/standard-8.gif')
-    .setFooter({ text: 'DreamShop Generator • Statut: .gg/shop2rv', iconURL: 'https://i.ibb.co/FbpXzSZ7/standard-8.gif' })
+    .setFooter({ text: 'DreamShop • Pure Standalone • .gg/shop2rv', iconURL: 'https://i.ibb.co/FbpXzSZ7/standard-8.gif' })
     .setTimestamp();
 }
 
 function buildEnglishGenEmbed(serviceLabel, combo, accountInfo, remainingStock) {
   const { EmbedBuilder } = require('discord.js');
   return new EmbedBuilder()
-    .setTitle(`🎁 DreamShop • ${serviceLabel} Account`)
+    .setTitle(`💎 DreamShop • ${serviceLabel} Account`)
     .setDescription(
-      `### ⚡ Congratulations! Here are your credentials:\n\n` +
-      `**🛠️ Service:** \`${serviceLabel}\`\n\n` +
-      `**🔑 Account (Copy-Paste):**\n` +
+      `### ⚡ Your credentials are ready!\n\n` +
+      `╭─ 🛠️ **SERVICE DETAILS**\n` +
+      `│ 🏷️ **Service :** \`${serviceLabel}\`\n` +
+      `│ 📦 **Remaining Stock :** \`${remainingStock}\`\n` +
+      (accountInfo ? `│ ℹ️ **Info :** \`${accountInfo}\`\n` : '') +
+      `╰────────────────────────\n\n` +
+      `🔑 **CREDENTIALS (COPY-PASTE) :**\n` +
       `\`\`\`fix\n${combo}\n\`\`\`\n` +
-      (accountInfo ? `ℹ️ **Information:** \`${accountInfo}\`\n\n` : '') +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `⚠️ **MANDATORY NOTICE (REVIEW WITHIN 24H):**\n` +
-      `> 📝 You must leave a review / proof in <#1532367074125545673> within **24 hours**!\n` +
-      `> 🚨 **Warning:** If you fail to do so within 24h, you will receive a warning.\n\n` +
-      `💡 **Security Tips:**\n` +
-      `• Change the password and email immediately if possible.\n` +
-      `• Do not share this account with anyone.\n\n` +
-      `📦 **Live stock remaining:** \`${remainingStock}\``
+      `⚠️ **MANDATORY REVIEW (WITHIN 24H) :**\n` +
+      `> 📝 Please post a review / proof in <#1537555746122629160>.\n` +
+      `> 🚨 **Warning :** Failure to post a review within 24h will result in a warning / blacklist.\n\n` +
+      `🛡️ **Security Tips :**\n` +
+      `• Change the password if supported by the service.\n` +
+      `• Never share your generated accounts.`
     )
-    .setColor(0x5865F2)
+    .setColor(0x00A8FF)
     .setImage('https://i.ibb.co/FbpXzSZ7/standard-8.gif')
-    .setFooter({ text: 'DreamShop Generator • Status: .gg/shop2rv', iconURL: 'https://i.ibb.co/FbpXzSZ7/standard-8.gif' })
+    .setFooter({ text: 'DreamShop • Pure Standalone • .gg/shop2rv', iconURL: 'https://i.ibb.co/FbpXzSZ7/standard-8.gif' })
     .setTimestamp();
 }
 
@@ -354,16 +356,17 @@ async function handleLanguageSwitch(interaction) {
 
     const rawTitle = embed.title || '';
     const serviceLabel = rawTitle
+      .replace(/^💎\s*DreamShop\s*•\s*/, '')
       .replace(/^🎁\s*DreamShop\s*•\s*/, '')
       .replace(/^(Compte\s*)/i, '')
       .replace(/(\s*Account)$/i, '')
       .replace(/\s*\((Compte Généré|Generated Account)\)$/i, '')
       .trim() || 'Service';
 
-    const infoMatch = embed.description ? embed.description.match(/ℹ️ \*\*Information[s]? :\*\* `([^`]+)`/) : null;
+    const infoMatch = embed.description ? embed.description.match(/│ ℹ️ \*\*Infos? :\*\* `([^`]+)`/) || embed.description.match(/ℹ️ \*\*Information[s]? :\*\* `([^`]+)`/) : null;
     const accountInfo = infoMatch ? infoMatch[1] : '';
 
-    const stockMatch = embed.description ? embed.description.match(/📦 \*\*Stock (?:restant en direct|restant|remaining|Live stock remaining) :\*\* `?(\d+)`?/) : null;
+    const stockMatch = embed.description ? embed.description.match(/📦 \*\*(?:Stock restant|Remaining Stock|Stock restant en direct) :\*\* `?(\d+)`?/) : null;
     const remainingStock = stockMatch ? stockMatch[1] : '0';
 
     const newEmbed = isFrench 
@@ -392,7 +395,7 @@ async function pingUserInProofChannel(guild, user, service) {
   if (!guild) return;
 
   try {
-    const REVIEW_CHANNEL_ID = '1532367074125545673';
+    const REVIEW_CHANNEL_ID = process.env.REVIEW_CHANNEL_ID || '1537555746122629160';
     let proofChannel = await guild.channels.fetch(REVIEW_CHANNEL_ID).catch(() => null);
 
     if (!proofChannel) {
