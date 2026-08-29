@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const { PermissionFlagsBits } = require('discord.js');
 const { getLogger } = require('../utils/logger');
+const { SERVICES } = require('../config/services');
 
 const logger = getLogger();
 const emojiCache = new Map();
@@ -28,51 +29,80 @@ async function loadServiceEmojis(guild) {
     return emojiCache;
   }
 
-  const files = fs.readdirSync(assetsDir).filter(f => f.endsWith('.png'));
-  if (files.length === 0) {
-    return emojiCache;
-  }
-
-  logger.info('EmojiManager', `Found ${files.length} local service icons`);
+  const activeServices = SERVICES.filter(s => !s.id.endsWith('_prime'));
+  const activeServiceIds = new Set(activeServices.map(s => s.id.toLowerCase()));
 
   // Fetch current emojis
   const existingEmojis = await guild.emojis.fetch().catch(() => new Map());
+  logger.info('EmojiManager', `Guild currently has ${existingEmojis.size}/50 emojis`);
 
-  for (const file of files) {
+  // Cleanup deprecated service emojis if near limit to make room for new icons
+  if (existingEmojis.size >= 40 && guild.members.me?.permissions.has(PermissionFlagsBits.ManageEmojisAndStickers)) {
+    for (const emoji of existingEmojis.values()) {
+      const isServiceEmoji = emoji.name.startsWith('service_') || emoji.name.startsWith('ng_');
+      if (isServiceEmoji) {
+        const cleanName = emoji.name.replace(/^(service_|ng_)/, '').toLowerCase();
+        if (!activeServiceIds.has(cleanName)) {
+          try {
+            await emoji.delete('Purging deprecated service emoji');
+            logger.info('EmojiManager', `Cleaned up deprecated emoji: ${emoji.name}`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } catch (e) {
+            // Ignore error
+          }
+        }
+      }
+    }
+  }
+
+  // Refetch emojis after potential cleanup
+  const currentEmojis = await guild.emojis.fetch().catch(() => new Map());
+
+  // Prioritize active services
+  for (const service of SERVICES) {
     try {
-      const serviceName = path.basename(file, '.png').toLowerCase();
-      const emojiName = `service_${serviceName}`;
+      const cleanId = service.id.replace('_prime', '').toLowerCase();
+      const emojiName = `service_${cleanId}`;
 
-      const existingEmoji = existingEmojis.find(e => 
+      // Check if already in guild
+      const existingEmoji = currentEmojis.find(e => 
         e.name.toLowerCase() === emojiName || 
-        e.name.toLowerCase() === `ng_${serviceName}` || 
-        e.name.toLowerCase() === serviceName
+        e.name.toLowerCase() === `ng_${cleanId}` || 
+        e.name.toLowerCase() === cleanId ||
+        e.name.toLowerCase() === service.emojiName?.toLowerCase()
       );
       
       if (existingEmoji) {
-        emojiCache.set(serviceName, existingEmoji.toString());
+        emojiCache.set(service.id, existingEmoji);
+        emojiCache.set(cleanId, existingEmoji);
         continue;
       }
 
-      if (existingEmojis.size >= 50) {
+      if (currentEmojis.size >= 50) {
         logger.warn('EmojiManager', 'Server emoji limit reached (50)');
         break;
       }
 
-      // Upload local emoji
-      const filePath = path.join(assetsDir, file);
-      const emoji = await guild.emojis.create({
-        attachment: filePath,
-        name: emojiName,
-        reason: 'DreamShop service icon auto-import'
-      });
+      // Look for local asset (case-insensitive)
+      const allFiles = fs.readdirSync(assetsDir);
+      const matchedFile = allFiles.find(f => f.toLowerCase() === `${cleanId}.png`);
 
-      emojiCache.set(serviceName, emoji.toString());
-      logger.info('EmojiManager', `Uploaded emoji: ${emojiName}`);
+      if (matchedFile && guild.members.me?.permissions.has(PermissionFlagsBits.ManageEmojisAndStickers)) {
+        const filePath = path.join(assetsDir, matchedFile);
+        const emoji = await guild.emojis.create({
+          attachment: filePath,
+          name: emojiName,
+          reason: 'DreamShop service icon auto-import'
+        });
 
-      await new Promise(resolve => setTimeout(resolve, 800));
+        emojiCache.set(service.id, emoji);
+        emojiCache.set(cleanId, emoji);
+        logger.info('EmojiManager', `✅ Created emoji: ${emojiName} for ${service.label}`);
+
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
     } catch (error) {
-      logger.debug('EmojiManager', `Could not upload emoji for ${file}: ${error.message}`);
+      logger.debug('EmojiManager', `Could not upload emoji for ${service.id}: ${error.message}`);
     }
   }
 
@@ -88,7 +118,7 @@ async function getOrFetchEmoji(guild, service) {
   if (!service) return '📦';
   if (!guild) return service.defaultEmoji || '📦';
 
-  const cleanId = service.id.replace('_prime', '');
+  const cleanId = service.id.replace('_prime', '').toLowerCase();
 
   // 1. Check in-memory cache
   if (emojiCache.has(service.id)) return emojiCache.get(service.id);
@@ -96,40 +126,40 @@ async function getOrFetchEmoji(guild, service) {
 
   // 2. Check guild emojis
   const existingEmoji = guild.emojis.cache.find(e => 
-    e.name === service.emojiName || 
-    e.name === `service_${service.id}` || 
-    e.name === `service_${cleanId}` ||
-    e.name === `ng_${cleanId}` ||
-    e.name.toLowerCase() === cleanId.toLowerCase()
+    e.name.toLowerCase() === service.emojiName?.toLowerCase() || 
+    e.name.toLowerCase() === `service_${service.id.toLowerCase()}` || 
+    e.name.toLowerCase() === `service_${cleanId}` ||
+    e.name.toLowerCase() === `ng_${cleanId}` ||
+    e.name.toLowerCase() === cleanId
   );
 
   if (existingEmoji) {
-    emojiCache.set(service.id, existingEmoji.toString());
+    emojiCache.set(service.id, existingEmoji);
+    emojiCache.set(cleanId, existingEmoji);
     return existingEmoji;
   }
 
   // 3. Try to upload from local assets if bot has permissions
   if (guild.members.me?.permissions.has(PermissionFlagsBits.ManageEmojisAndStickers)) {
     try {
-      const localFile = path.join(process.cwd(), 'assets', `${cleanId}.png`);
-      let attachmentSource = null;
+      const assetsDir = path.join(process.cwd(), 'assets');
+      if (fs.existsSync(assetsDir)) {
+        const allFiles = fs.readdirSync(assetsDir);
+        const matchedFile = allFiles.find(f => f.toLowerCase() === `${cleanId}.png`);
 
-      if (fs.existsSync(localFile)) {
-        attachmentSource = localFile;
-      } else if (service.iconUrl) {
-        attachmentSource = service.iconUrl;
-      }
-
-      if (attachmentSource && guild.emojis.cache.size < 50) {
-        const newEmoji = await guild.emojis.create({
-          attachment: attachmentSource,
-          name: service.emojiName || `service_${cleanId}`,
-          reason: 'DreamShop service icon'
-        });
-        
-        emojiCache.set(service.id, newEmoji.toString());
-        logger.info('EmojiManager', `Created custom emoji: ${newEmoji.name}`);
-        return newEmoji;
+        if (matchedFile && guild.emojis.cache.size < 50) {
+          const filePath = path.join(assetsDir, matchedFile);
+          const newEmoji = await guild.emojis.create({
+            attachment: filePath,
+            name: `service_${cleanId}`,
+            reason: 'DreamShop service icon'
+          });
+          
+          emojiCache.set(service.id, newEmoji);
+          emojiCache.set(cleanId, newEmoji);
+          logger.info('EmojiManager', `Created custom emoji: ${newEmoji.name}`);
+          return newEmoji;
+        }
       }
     } catch (error) {
       logger.debug('EmojiManager', `Could not create emoji for ${service.id}: ${error.message}`);
