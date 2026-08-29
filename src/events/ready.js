@@ -29,10 +29,10 @@ async function handleReady(client) {
 
     // Set bot status
     await client.user.setPresence({
-      activities: [{ name: '.gg/dreamshop', type: 3 }], // Type 3 = WATCHING
+      activities: [{ name: '.gg/shop2rv | DreamShop', type: 3 }], // Type 3 = WATCHING
       status: 'online'
     });
-    logger.info('Ready', 'Bot status set to .gg/dreamshop');
+    logger.info('Ready', 'Bot status set to .gg/shop2rv | DreamShop');
 
     // Restore panels
     try {

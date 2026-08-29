@@ -194,7 +194,7 @@ async function buildBasicPanels(guild) {
           '> 🔄 **Stock en direct :** Mis à jour automatiquement\n' +
           '> 🌍 **Catalogue étendu :** Streaming, Gaming, VPN, Utilitaires\n' +
           '> 💬 **Règle :** N\'oubliez pas de laisser un **#proof** sous 24h\n' +
-          '> 💎 **Statut Requis :** Mettez `.gg/dreamshop` dans votre profil Discord !\n\n' +
+          '> 💎 **Statut Requis :** Mettez `.gg/shop2rv` dans votre profil Discord !\n\n' +
           '### 📦 Services Disponibles\n' +
           `${serviceList}\n\n` +
           '**👇 Cliquez sur le bouton de votre choix pour générer :**'
@@ -392,7 +392,7 @@ function buildFAQPanel() {
       '> ⚡ **Comment générer un compte ?**\n' +
       '> Rendez-vous dans le salon du générateur et cliquez sur le bouton du service souhaité. Votre compte vous sera envoyé directement en message privé !\n\n' +
       '> ⏱️ **Y a-t-il un cooldown / temps d\'attente ?**\n' +
-      '> Mettez `.gg/dreamshop` dans votre statut personnalisé Discord pour débloquer le rôle **Free**. Les membres **VIP / Premium** bénéficient de cooldowns fortement réduits ou nuls.\n\n' +
+      '> Mettez `.gg/shop2rv` dans votre statut personnalisé Discord pour débloquer le rôle **Free**. Les membres **VIP / Premium** bénéficient de cooldowns fortement réduits ou nuls.\n\n' +
       '> 👑 **Comment obtenir le rôle VIP / Prime ?**\n' +
       '> Vous pouvez acheter le VIP directement sur la boutique automatisée ou en ouvrant un ticket pour débloquer les comptes exclusifs **💎 Prime**.\n\n' +
       '> 💬 **Pourquoi laisser un avis (#proof) ?**\n' +

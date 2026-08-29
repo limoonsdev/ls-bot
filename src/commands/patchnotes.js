@@ -31,7 +31,7 @@ async function execute(interaction) {
     .setColor('#5865F2')
     .setImage(PANEL_BANNER_URL)
     .setTimestamp()
-    .setFooter({ text: 'DreamShop Updates • .gg/dreamshop', iconURL: PANEL_BANNER_URL });
+    .setFooter({ text: 'DreamShop Updates • .gg/shop2rv', iconURL: PANEL_BANNER_URL });
 
   try {
     await channel.send({ embeds: [embed] });

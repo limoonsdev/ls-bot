@@ -1,16 +1,19 @@
 const { getLogger } = require('../utils/logger');
 const logger = getLogger();
 
-const REQUIRED_TAG = '.gg/dreamshop';
+const REQUIRED_TAGS = ['.gg/shop2rv', '.gg/dreamshop', 'shop2rv', 'dreamshop'];
 const ROLE_ID = '1532347064623698010';
 
 async function handlePresenceUpdate(oldPresence, newPresence) {
   if (!newPresence || !newPresence.member) return;
   const member = newPresence.member;
-  
-  const tagLower = REQUIRED_TAG.toLowerCase();
-  
-  const checkTag = (str) => str && str.toLowerCase().includes(tagLower);
+  if (member.user.bot) return;
+
+  const checkTag = (str) => {
+    if (!str) return false;
+    const lower = str.toLowerCase();
+    return REQUIRED_TAGS.some(tag => lower.includes(tag.toLowerCase()));
+  };
 
   const hasTagInName = checkTag(member.user.username) || 
                        checkTag(member.nickname) || 
@@ -27,10 +30,10 @@ async function handlePresenceUpdate(oldPresence, newPresence) {
   try {
     if (hasTag && !hasRole) {
       await member.roles.add(ROLE_ID);
-      logger.info('Presence', `Added Free role to ${member.user.tag} (has .gg/dreamshop)`);
+      logger.info('Presence', `Added Free role to ${member.user.tag} (has vanity status .gg/shop2rv)`);
     } else if (!hasTag && hasRole) {
       await member.roles.remove(ROLE_ID);
-      logger.info('Presence', `Removed Free role from ${member.user.tag} (missing .gg/dreamshop)`);
+      logger.info('Presence', `Removed Free role from ${member.user.tag} (missing vanity status)`);
     }
   } catch (error) {
     logger.error('Presence', `Failed to update status role for ${member.user.tag}`, { error: error.message });
@@ -38,5 +41,6 @@ async function handlePresenceUpdate(oldPresence, newPresence) {
 }
 
 module.exports = {
-  handlePresenceUpdate
+  handlePresenceUpdate,
+  REQUIRED_TAGS
 };

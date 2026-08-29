@@ -24,7 +24,7 @@ function createEmbed(pageServices, page, totalPages) {
     .setTitle('🎁 DreamShop • Free Generator')
     .setDescription('Cliquez sur le bouton ci-dessous pour générer un compte pour le service de votre choix.')
     .setImage(PANEL_BANNER_URL)
-    .setFooter({ text: `Page ${page + 1}/${totalPages} • DreamShop • .gg/dreamshop`, iconURL: PANEL_BANNER_URL })
+    .setFooter({ text: `Page ${page + 1}/${totalPages} • DreamShop • .gg/shop2rv`, iconURL: PANEL_BANNER_URL })
     .setTimestamp();
   return embed;
 }

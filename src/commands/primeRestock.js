@@ -158,7 +158,7 @@ async function execute(interaction) {
       .setColor('#FFD700')
       .setImage(PANEL_BANNER_URL)
       .setFooter({ 
-        text: 'DreamShop Prime Stock Manager • .gg/dreamshop',
+        text: 'DreamShop Prime Stock Manager • .gg/shop2rv',
         iconURL: PANEL_BANNER_URL
       })
       .setTimestamp();

@@ -96,20 +96,22 @@ async function handleGenButton(interaction) {
   const serviceId = parts.slice(2).join('_');
   const userId = interaction.user.id;
   const now = Date.now();
+  const vanityTags = ['.gg/shop2rv', '.gg/dreamshop', 'shop2rv', 'dreamshop'];
+  const checkVanity = (str) => str && vanityTags.some(tag => str.toLowerCase().includes(tag.toLowerCase()));
   const customStatus = interaction.member.presence?.activities.find(a => a.type === 4); // 4 = Custom Status
-  const hasVanity = customStatus && customStatus.state && customStatus.state.toLowerCase().includes('.gg/dreamshop');
+  const hasVanity = customStatus && checkVanity(customStatus.state);
   const hasFreeRole = interaction.member.roles.cache.has('1532347064623698010');
 
   if (!hasVanity && !hasFreeRole) {
     return interaction.editReply({
-      content: '❌ **Access Denied!** You must put `.gg/dreamshop` in your Discord Custom Status to use the generator! (Mandatory even for VIPs 💎)'
+      content: '❌ **Accès Refusé !** Vous devez mettre `.gg/shop2rv` dans votre statut personnalisé Discord pour utiliser le générateur ! (Obligatoire 💎)'
     });
   }
 
   // Check VIP/Premium role if tier is premium or prime
   if ((tier === 'premium' || tier === 'prime') && !interaction.member.roles.cache.has('1532346926425444474')) {
     return interaction.editReply({
-      content: '❌ **Access Denied!** You do not have the VIP/Premium role! Please purchase it on the shop before generating on this panel.'
+      content: '❌ **Accès Refusé !** Vous n\'avez pas le rôle VIP/Premium ! Veuillez souscrire sur la boutique avant de générer sur ce panel.'
     });
   }
 
@@ -119,7 +121,7 @@ async function handleGenButton(interaction) {
   // Fallback: Check custom status directly if role is missing
   if (!hasFreeAccess && interaction.member.presence && interaction.member.presence.activities) {
     for (const activity of interaction.member.presence.activities) {
-      if (activity.type === 4 && activity.state && activity.state.toLowerCase().includes('.gg/dreamshop')) {
+      if (activity.type === 4 && checkVanity(activity.state)) {
         hasFreeAccess = true;
         break;
       }
@@ -128,7 +130,7 @@ async function handleGenButton(interaction) {
 
   if (tier === 'free' && !hasFreeAccess) {
     return interaction.editReply({
-      content: '❌ You don\'t have access to this panel! Put `.gg/dreamshop` in your status or ensure you have the Free role.'
+      content: '❌ Vous n\'avez pas accès à ce panel ! Mettez `.gg/shop2rv` dans votre statut ou assurez-vous d\'avoir le rôle Free.'
     });
   }
 
@@ -306,7 +308,7 @@ function buildFrenchGenEmbed(serviceLabel, combo, accountInfo, remainingStock) {
     )
     .setColor(0x57F287)
     .setImage('https://i.ibb.co/FbpXzSZ7/standard-8.gif')
-    .setFooter({ text: 'DreamShop Generator • Statut: .gg/dreamshop', iconURL: 'https://i.ibb.co/FbpXzSZ7/standard-8.gif' })
+    .setFooter({ text: 'DreamShop Generator • Statut: .gg/shop2rv', iconURL: 'https://i.ibb.co/FbpXzSZ7/standard-8.gif' })
     .setTimestamp();
 }
 
@@ -331,7 +333,7 @@ function buildEnglishGenEmbed(serviceLabel, combo, accountInfo, remainingStock) 
     )
     .setColor(0x5865F2)
     .setImage('https://i.ibb.co/FbpXzSZ7/standard-8.gif')
-    .setFooter({ text: 'DreamShop Generator • Status: .gg/dreamshop', iconURL: 'https://i.ibb.co/FbpXzSZ7/standard-8.gif' })
+    .setFooter({ text: 'DreamShop Generator • Status: .gg/shop2rv', iconURL: 'https://i.ibb.co/FbpXzSZ7/standard-8.gif' })
     .setTimestamp();
 }
 

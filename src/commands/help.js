@@ -55,12 +55,12 @@ async function execute(interaction) {
         },
         {
           name: '💡 Astuces & Accès',
-          value: '• Mettez **`.gg/dreamshop`** dans votre statut Discord pour débloquer le rôle **Free** !\n• Passez **VIP/Premium** sur le shop ou en ticket pour du stock illimité sans attente.',
+          value: '• Mettez **`.gg/shop2rv`** dans votre statut Discord pour débloquer le rôle **Free** !\n• Passez **VIP/Premium** sur le shop ou en ticket pour du stock illimité sans attente.',
           inline: false
         }
       )
       .setImage(PANEL_BANNER_URL)
-      .setFooter({ text: 'DreamShop v3.0 • .gg/dreamshop', iconURL: PANEL_BANNER_URL })
+      .setFooter({ text: 'DreamShop v3.0 • .gg/shop2rv', iconURL: PANEL_BANNER_URL })
       .setTimestamp();
 
     await interaction.reply({

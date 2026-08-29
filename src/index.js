@@ -175,25 +175,12 @@ class DreamShopBot {
       }
     });
 
-    // Presence Update event for custom status and tags (.gg/dreamshop)
+    // Presence Update event for custom status and tags (.gg/shop2rv & .gg/dreamshop)
     this.client.on('presenceUpdate', async (oldPresence, newPresence) => {
       try {
-        if (!newPresence || !newPresence.member) return;
-        const member = newPresence.member;
-        if (member.user.bot) return;
-
-        const vanityString = '.gg/dreamshop'; // Required vanity string in status
-        const freeRoleId = '1532347064623698010'; // Free role to give
-
-        const customStatus = newPresence.activities?.find(activity => activity.type === 4); // 4 is Custom Status
-        const hasVanity = customStatus?.state && customStatus.state.toLowerCase().includes(vanityString);
-        
-        const hasRole = member.roles.cache.has(freeRoleId);
-
-        if (hasVanity && !hasRole) {
-          await member.roles.add(freeRoleId).catch(() => {});
-        } else if (!hasVanity && hasRole) {
-          await member.roles.remove(freeRoleId).catch(() => {});
+        const { handlePresenceUpdate } = require('./events/presenceUpdate');
+        if (handlePresenceUpdate) {
+          await handlePresenceUpdate(oldPresence, newPresence);
         }
       } catch (error) {
         logger.error('Bot', 'Error in presenceUpdate', { error: error.message });
